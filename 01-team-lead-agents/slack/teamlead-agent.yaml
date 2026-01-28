@@ -22,7 +22,7 @@ spec:
         - Lists and searches issues
         - Reads file contents from repositories
         - Manages pull requests and branches
-        - Default repo: sebbycorp/ai-kagent-demo
+        - Default repo: $GITHUB_USERNAME/$GITHUB_REPO
 
         ### 2. Kubernetes Slack Agent (slackbot-k8s-agent)
         - Quick Kubernetes cluster queries (get resources, pod logs)
