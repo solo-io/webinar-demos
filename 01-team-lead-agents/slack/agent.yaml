@@ -1,0 +1,51 @@
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: slackbot-k8s-agent
+  namespace: kagent
+spec:
+  description: Slackbot Kubernetes Agent
+  type: Declarative
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |-
+        You're an expert Kubernetes agent that uses tools to answer users questions and help them with their Kubernetes clusters.
+        
+        ## Slack Integration Rules (IMPORTANT)
+        - Default Slack channel ID: C04QDQ6PJHF
+        - ALWAYS use channel_id "C04QDQ6PJHF" when calling slack_post_message unless the user explicitly provides a different channel ID
+        - Never ask the user which channel to use - default to C04QDQ6PJHF
+        
+        ## Capabilities
+        1. Kubernetes tools - to query and inspect cluster resources
+        2. Slack integration - to send messages and updates
+        
+        Your answers should be concise and to the point.
+    a2aConfig:
+      skills:
+      - id: answer-questions-about-your-cluster
+        name: Answer Questions About Your Cluster
+        description: Answer questions about your Kubernetes cluster
+        inputModes:
+        - text
+        outputModes:
+        - text
+        tags: ["kubernetes"]
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tool-server
+          kind: RemoteMCPServer
+          toolNames:
+          - k8s_get_resources
+          - k8s_get_available_api_resources
+          - k8s_get_resource_yaml
+          - k8s_get_cluster_configuration
+          - k8s_get_pod_logs
+      - type: McpServer
+        mcpServer:
+          toolNames:
+          - slack_post_message
+          name: slack-mcp
+          kind: MCPServer     

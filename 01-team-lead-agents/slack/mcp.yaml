@@ -1,0 +1,18 @@
+---
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: slack-mcp
+  namespace: kagent
+spec:
+  deployment:
+    image: "zencoderai/slack-mcp:latest"
+    port: 3000
+    cmd: "node"
+    args:
+      - "dist/index.js"
+      - "--transport"
+      - "stdio"
+    secretRefs:
+      - name: slack-credentials
+  transportType: "stdio"
