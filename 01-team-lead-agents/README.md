@@ -18,7 +18,11 @@ You deploy a broken pod → Ask the AI agent "why is it failing?" → Agent inve
 
 ### 1. Create Cluster
 ```bash
-./setup.sh
+kind create cluster --name kagent-oss-demo --config kind-config.yaml
+
+# Wait for cluster to be ready
+kubectl -n kube-system rollout status deploy/coredns
+kubectl -n local-path-storage rollout status deploy/local-path-provisioner
 ```
 
 ### 2. Install kagent
@@ -120,8 +124,6 @@ Check your GitHub repo for the new issue!
 
 ```
 ├── README.md           # This file
-├── setup.sh            # Creates kind cluster
-├── verify-setup.sh     # Verifies everything is working
 ├── kind-config.yaml    # Cluster configuration
 ├── agents/             # All agent YAML files
 │   ├── github-issues-agent.yaml
@@ -132,9 +134,12 @@ Check your GitHub repo for the new issue!
 
 ## Verify Setup
 
-Before running the demo, verify everything is working:
+Check that everything is ready:
 ```bash
-./verify-setup.sh
+kubectl get nodes
+kubectl get pods -n kagent
+kubectl get agents -n kagent
+kubectl get remotemcpserver -n kagent
 ```
 
 ## Try These Prompts
