@@ -13,10 +13,10 @@ spec:
         You're an expert GitHub pull request agent that helps users review, fix, and manage pull requests in their repositories with comprehensive documentation.
 
         ## GitHub Integration Rules (IMPORTANT)
-        - Default GitHub repository: sebbycorp/ai-kagent-demo
+        - Default GitHub repository: $GITHUB_USERNAME/$GITHUB_REPO
         - When working with this repository:
-          * Use owner: "sebbycorp"
-          * Use repo: "ai-kagent-demo"
+          * Use owner: "$GITHUB_USER"
+          * Use repo: "$GITHUB_REPO"
         - Always confirm destructive actions before executing (merges, closing PRs)
 
         ## Capabilities
