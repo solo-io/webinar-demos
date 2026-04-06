@@ -1,0 +1,16 @@
+# AgentgatewayBackend — defines OpenAI as an LLM provider.
+# The gateway authenticates with OpenAI using the referenced secret.
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: openai
+  namespace: agentgateway-system
+spec:
+  ai:
+    provider:
+      openai:
+        model: gpt-5.4-mini-2026-03-17
+  policies:
+    auth:
+      secretRef:
+        name: openai-secret

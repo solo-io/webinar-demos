@@ -3,7 +3,9 @@ set -euo pipefail
 
 #############################################################
 # 04-register-agents.sh
-# Registers skills in agentregistry via its REST API.
+# Team A (SRE): Registers their specialist skills, agents,
+# and MCP servers in agentregistry so other teams can
+# discover and reuse them.
 # No arctl CLI needed — just curl.
 #############################################################
 
@@ -16,7 +18,7 @@ REGISTRY_URL="${REGISTRY_URL:-http://localhost:12121}"
 GIT_REPO="${GIT_REPO:-https://github.com/solo-io/multi-agent-skills-demo}"
 
 echo "=========================================="
-echo " Registering Skills in AgentRegistry"
+echo " Team A: Register Skills in AgentRegistry"
 echo "=========================================="
 echo ""
 echo "  Registry: ${REGISTRY_URL}"
@@ -39,9 +41,8 @@ fi
 echo "  Connected."
 
 echo ""
-echo "==> Registering skills..."
+echo "==> Registering Team A's skills..."
 
-# Register k8s-deploy skill
 echo ""
 echo "  Registering k8s-deploy..."
 curl -s -X POST "${REGISTRY_URL}/v0/skills" \
@@ -56,9 +57,8 @@ curl -s -X POST "${REGISTRY_URL}/v0/skills" \
       \"url\": \"${GIT_REPO}/tree/main/skills/k8s-deploy\",
       \"source\": \"github\"
     }
-  }" | python3 -m json.tool 2>/dev/null || echo "  (registered or error — check response above)"
+  }" | python3 -m json.tool 2>/dev/null || echo "  (registered or error)"
 
-# Register k8s-healthcheck skill
 echo ""
 echo "  Registering k8s-healthcheck..."
 curl -s -X POST "${REGISTRY_URL}/v0/skills" \
@@ -75,25 +75,8 @@ curl -s -X POST "${REGISTRY_URL}/v0/skills" \
     }
   }" | python3 -m json.tool 2>/dev/null || echo "  (registered or error)"
 
-# Register incident-response skill
 echo ""
-echo "  Registering incident-response..."
-curl -s -X POST "${REGISTRY_URL}/v0/skills" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"name\": \"incident-response\",
-    \"description\": \"Multi-agent incident response coordination with root cause analysis and remediation.\",
-    \"version\": \"1.0.0\",
-    \"title\": \"Incident Response Skill\",
-    \"category\": \"operations\",
-    \"repository\": {
-      \"url\": \"${GIT_REPO}/tree/main/skills/incident-response\",
-      \"source\": \"github\"
-    }
-  }" | python3 -m json.tool 2>/dev/null || echo "  (registered or error)"
-
-echo ""
-echo "==> Registering agents..."
+echo "==> Registering Team A's agents..."
 
 echo ""
 echo "  Registering k8s-deploy-agent..."
@@ -108,7 +91,7 @@ curl -s -X POST "${REGISTRY_URL}/v0/agents" \
     \"language\": \"go\",
     \"framework\": \"kagent\",
     \"modelProvider\": \"openai\",
-    \"modelName\": \"gpt-4o\",
+    \"modelName\": \"gpt-5.4-mini-2026-03-17\",
     \"repository\": {
       \"url\": \"${GIT_REPO}/tree/main/agents\",
       \"source\": \"github\"
@@ -128,27 +111,7 @@ curl -s -X POST "${REGISTRY_URL}/v0/agents" \
     \"language\": \"go\",
     \"framework\": \"kagent\",
     \"modelProvider\": \"openai\",
-    \"modelName\": \"gpt-4o\",
-    \"repository\": {
-      \"url\": \"${GIT_REPO}/tree/main/agents\",
-      \"source\": \"github\"
-    }
-  }" | python3 -m json.tool 2>/dev/null || echo "  (registered or error)"
-
-echo ""
-echo "  Registering incident-response-agent..."
-curl -s -X POST "${REGISTRY_URL}/v0/agents" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"name\": \"incident-response-agent\",
-    \"version\": \"1.0.0\",
-    \"title\": \"Incident Response Agent\",
-    \"description\": \"Multi-agent orchestrator that coordinates deploy and healthcheck agents for incident response with root cause analysis.\",
-    \"image\": \"ghcr.io/kagent-dev/kagent/controller:latest\",
-    \"language\": \"go\",
-    \"framework\": \"kagent\",
-    \"modelProvider\": \"openai\",
-    \"modelName\": \"gpt-4o\",
+    \"modelName\": \"gpt-5.4-mini-2026-03-17\",
     \"repository\": {
       \"url\": \"${GIT_REPO}/tree/main/agents\",
       \"source\": \"github\"
@@ -183,7 +146,7 @@ curl -s -X POST "${REGISTRY_URL}/v0/servers" \
   }' | python3 -m json.tool 2>/dev/null || echo "  (registered or error)"
 
 echo ""
-echo "==> Verifying registration..."
+echo "==> Verifying Team A's registration..."
 echo ""
 echo "  Skills:"
 curl -s "${REGISTRY_URL}/v0/skills?version=latest" | python3 -m json.tool 2>/dev/null | head -20 || \
@@ -194,12 +157,24 @@ curl -s "${REGISTRY_URL}/v0/agents?version=latest" | python3 -m json.tool 2>/dev
   echo "  (check: curl ${REGISTRY_URL}/v0/agents)"
 
 echo ""
-echo "==> All registered!"
+echo "  Registering agentgateway..."
+curl -s -X POST "${REGISTRY_URL}/v0/servers" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+    "name": "agentgateway-dev/agentgateway",
+    "version": "1.0.1",
+    "title": "agentgateway",
+    "description": "AI-native proxy for LLM, MCP, and A2A traffic with security policies, observability, and cost controls."
+  }' | python3 -m json.tool 2>/dev/null || echo "  (registered or error)"
+
 echo ""
-echo "  Web UI:         ${REGISTRY_URL}"
-echo "  List skills:    curl -s ${REGISTRY_URL}/v0/skills | python3 -m json.tool"
-echo "  List agents:    curl -s ${REGISTRY_URL}/v0/agents | python3 -m json.tool"
-echo "  List servers:   curl -s ${REGISTRY_URL}/v0/servers | python3 -m json.tool"
-echo "  Search:         curl -s '${REGISTRY_URL}/v0/skills?search=kubernetes'"
+echo "==> Team A registration complete!"
 echo ""
-echo "==> Next: run 05-run-and-eval.sh"
+echo "  2 skills:  k8s-deploy, k8s-healthcheck"
+echo "  2 agents:  k8s-deploy-agent, k8s-healthcheck-agent"
+echo "  3 servers: kagent-tool-server, kagent-grafana-mcp, agentgateway"
+echo ""
+echo "  Web UI:    ${REGISTRY_URL}"
+echo ""
+echo "==> Next: run 05-compose-agent.sh (Team B discovers and composes)"

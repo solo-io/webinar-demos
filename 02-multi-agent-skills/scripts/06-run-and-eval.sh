@@ -2,7 +2,7 @@
 set -euo pipefail
 
 #############################################################
-# 05-run-and-eval.sh
+# 06-run-and-eval.sh
 # Runs the agents against a test workload via the kagent
 # REST API (A2A protocol). No local CLIs needed.
 # Traces flow automatically via OTLP to agentevals.
@@ -134,11 +134,23 @@ echo " Evaluate"
 echo "=========================================="
 echo ""
 echo "  Traces have been collected automatically via OTLP."
+echo "  Every tool call from the runs above is now a span in agentevals."
 echo ""
 echo "  Open the agentevals UI to view traces and run evaluations:"
 echo "    http://localhost:8001"
 echo ""
-echo "  You can also use the kagent UI to chat with agents interactively:"
+echo "  What you can do:"
+echo "    - View live sessions — each agent run is already captured"
+echo "    - Click into a session to see the span tree (tool calls, args, responses)"
+echo "    - Mark a good run as the 'golden path' and create an eval set from it"
+echo "    - Score runs with built-in metrics:"
+echo "        tool_trajectory_avg_score  — did it call the right tools in order?"
+echo "        response_match_score       — does the output match expected?"
+echo "        hallucinations_v1          — did it make things up?"
+echo ""
+echo "  Eval sets are in: evals/*.json (ADK conversation format)"
+echo ""
+echo "  Chat with agents interactively:"
 echo "    http://localhost:8082"
 echo ""
 echo "  Agent API responses saved to: traces/*.json"
@@ -147,9 +159,10 @@ echo "=========================================="
 echo " All Access Points"
 echo "=========================================="
 echo ""
-echo "  kagent UI:       http://localhost:8082  (chat with agents)"
-echo "  kagent API:      http://localhost:8083  (REST + A2A)"
-echo "  agentregistry:   http://localhost:12121 (skill catalog)"
-echo "  agentevals:      http://localhost:8001  (traces + evals)"
+echo "  kagent UI:         http://localhost:8082  (chat with agents)"
+echo "  kagent API:        http://localhost:8083  (REST + A2A)"
+echo "  agentgateway:      http://localhost:9090  (LLM/MCP/A2A proxy)"
+echo "  agentregistry:     http://localhost:12121 (skill catalog)"
+echo "  agentevals:        http://localhost:8001  (traces + evals)"
 echo ""
 echo "==> Done!"

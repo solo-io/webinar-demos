@@ -10,7 +10,7 @@ spec:
     applies changes, monitors rollouts, and handles rollback on failure.
   declarative:
     # default-model-config is auto-created by the kagent Helm chart
-    # using providers.openAI.model (gpt-4o)
+    # using providers.openAI.model (gpt-5.4-mini-2026-03-17)
     modelConfig: default-model-config
     systemMessage: |
       You are a Kubernetes deployment specialist agent named {{.AgentName}}.

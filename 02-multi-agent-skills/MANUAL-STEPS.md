@@ -57,6 +57,10 @@ helm upgrade --install agentevals \
   /tmp/agentevals/charts/agentevals \
   --namespace default \
   --set tag=0.6.3 \
+  --set 'command={agentevals}' \
+  --set 'args={serve,--dev}' \
+  --set env[0].name=OPENAI_API_KEY \
+  --set env[0].value="${OPENAI_API_KEY}" \
   --wait --timeout 300s
 ```
 
@@ -67,7 +71,129 @@ kubectl get pods -l app.kubernetes.io/name=agentevals
 
 ---
 
-## Step 3: Install kagent
+## Step 3: Install agentgateway
+
+agentgateway is an AI-native proxy that governs LLM, MCP, and A2A traffic. All LLM calls from kagent will flow through it.
+
+### Install Gateway API CRDs
+
+```bash
+kubectl apply --server-side --force-conflicts -f \
+  https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml
+```
+
+### Install agentgateway CRDs + control plane
+
+```bash
+helm upgrade -i agentgateway-crds \
+  oci://cr.agentgateway.dev/charts/agentgateway-crds \
+  --create-namespace \
+  --namespace agentgateway-system \
+  --version v1.0.1
+
+helm upgrade -i agentgateway \
+  oci://cr.agentgateway.dev/charts/agentgateway \
+  --namespace agentgateway-system \
+  --version v1.0.1 \
+  --wait --timeout 180s
+```
+
+### Create the OpenAI secret
+
+```bash
+kubectl create secret generic openai-secret \
+  -n agentgateway-system \
+  --from-literal=Authorization="Bearer ${OPENAI_API_KEY}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### Apply gateway resources
+
+```bash
+kubectl apply -f gateway/gateway.yaml
+kubectl apply -f gateway/openai-backend.yaml
+kubectl apply -f gateway/openai-route.yaml
+```
+
+Or if you prefer to apply them inline:
+
+```bash
+# Gateway listener
+cat <<'EOF' | kubectl apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ai-gateway
+  namespace: agentgateway-system
+spec:
+  gatewayClassName: agentgateway
+  listeners:
+  - protocol: HTTP
+    port: 80
+    name: http
+    allowedRoutes:
+      namespaces:
+        from: All
+EOF
+
+# OpenAI backend
+cat <<'EOF' | kubectl apply -f -
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: openai
+  namespace: agentgateway-system
+spec:
+  ai:
+    provider:
+      openai:
+        model: gpt-5.4-mini-2026-03-17
+  policies:
+    auth:
+      secretRef:
+        name: openai-secret
+EOF
+
+# Route /openai traffic to the backend
+cat <<'EOF' | kubectl apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: openai
+  namespace: agentgateway-system
+spec:
+  parentRefs:
+  - name: ai-gateway
+    namespace: agentgateway-system
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /openai
+    backendRefs:
+    - name: openai
+      namespace: agentgateway-system
+      group: agentgateway.dev
+      kind: AgentgatewayBackend
+EOF
+```
+
+Verify:
+```bash
+kubectl get gateway,agentgatewaybackend,httproute -n agentgateway-system
+kubectl get pods -n agentgateway-system
+```
+
+Wait for the proxy pod:
+```bash
+kubectl get deploy -n agentgateway-system
+```
+
+You should see the agentgateway controller and a gateway proxy deployment.
+
+---
+
+## Step 4: Install kagent
 
 kagent is the Kubernetes-native AI agent framework. It auto-creates a `default-model-config` (ModelConfig), `kagent-openai` (Secret), and `kagent-tool-server` (RemoteMCPServer).
 
@@ -81,10 +207,11 @@ helm upgrade --install kagent oci://ghcr.io/kagent-dev/kagent/helm/kagent \
   --namespace kagent \
   --set providers.default=openAI \
   --set providers.openAI.apiKey="${OPENAI_API_KEY}" \
-  --set providers.openAI.model=gpt-4o \
+  --set providers.openAI.model=gpt-5.4-mini-2026-03-17 \
   --set otel.tracing.enabled=true \
   --set otel.tracing.exporter.otlp.endpoint="agentevals.default.svc.cluster.local:4317" \
   --set otel.tracing.exporter.otlp.insecure=true \
+  --set otel.tracing.exporter.otlp.protocol="grpc" \
   --set agents.istio-agent.enabled=false \
   --set agents.kgateway-agent.enabled=false \
   --set agents.promql-agent.enabled=false \
@@ -105,11 +232,30 @@ kubectl get modelconfig -n kagent
 kubectl get remotemcpserver -n kagent
 ```
 
-You should see `default-model-config` and `kagent-tool-server`.
+### Route kagent through agentgateway
+
+Patch the ModelConfig so all LLM requests flow through the gateway:
+
+```bash
+# Find the gateway proxy service name
+kubectl get svc -n agentgateway-system
+
+# Patch ModelConfig with the gateway URL
+kubectl patch modelconfig default-model-config -n kagent \
+  --type merge \
+  -p '{"spec":{"baseUrl":"http://ai-gateway.agentgateway-system.svc:80/openai/v1"}}'
+```
+
+> **Note:** The service name `ai-gateway` matches the Gateway resource name. If your proxy service has a different name, adjust the URL accordingly. Check with `kubectl get svc -n agentgateway-system`.
+
+Verify the patch:
+```bash
+kubectl get modelconfig default-model-config -n kagent -o yaml | grep baseUrl
+```
 
 ---
 
-## Step 4: Install agentregistry
+## Step 5: Install agentregistry
 
 agentregistry provides a skill catalog with a REST API and web UI. The bundled PostgreSQL needs the pgvector image (the migration SQL creates the `vector` extension).
 
@@ -139,20 +285,25 @@ kubectl get pods -n agentregistry
 
 ---
 
-## Step 5: Set Up Port-Forwards
+## Step 6: Set Up Port-Forwards
 
 ```bash
 # Kill any existing port-forwards
 pkill -f "port-forward.*agentevals" 2>/dev/null || true
 pkill -f "port-forward.*kagent" 2>/dev/null || true
+pkill -f "port-forward.*agentgateway" 2>/dev/null || true
 
 # agentevals UI + OTLP
 kubectl port-forward svc/agentevals -n default 8001:8001 &>/dev/null &
-kubectl port-forward svc/agentevals -n default 4318:4318 &>/dev/null &
+kubectl port-forward svc/agentevals -n default 4317:4317 &>/dev/null &
 
 # kagent API + UI (note: kagent-ui listens on port 8080 internally)
 kubectl port-forward svc/kagent-controller -n kagent 8083:8083 &>/dev/null &
 kubectl port-forward svc/kagent-ui -n kagent 8082:8080 &>/dev/null &
+
+# agentgateway proxy (find the proxy service dynamically)
+GW_SVC=$(kubectl get svc -n agentgateway-system -o name | grep -v controller | head -1 | sed 's|service/||')
+kubectl port-forward "svc/${GW_SVC}" -n agentgateway-system 9090:80 &>/dev/null &
 ```
 
 > **agentregistry** is exposed via NodePort — no port-forward needed. It's at `http://localhost:12121`.
@@ -161,6 +312,7 @@ Test connectivity:
 ```bash
 curl -s http://localhost:8083/api/agents | python3 -m json.tool
 curl -s http://localhost:12121/v0/skills | python3 -m json.tool
+curl -s http://localhost:9090/openai/v1/models 2>/dev/null || echo "(gateway test)"
 ```
 
 If port-forwards die later, restart them:
@@ -175,11 +327,14 @@ source ./scripts/ensure-portforward.sh
 | agentevals UI | http://localhost:8001 |
 | kagent UI | http://localhost:8082 |
 | kagent API | http://localhost:8083 |
+| agentgateway proxy | http://localhost:9090 |
 | agentregistry | http://localhost:12121 |
 
 ---
 
-## Step 6: Deploy the 3 Agents
+## Step 7: Team A — Deploy Specialist Agents
+
+Team A (SRE) builds and deploys the specialist agents — the building blocks.
 
 First confirm the auto-created resources exist:
 ```bash
@@ -187,11 +342,10 @@ kubectl get modelconfig default-model-config -n kagent
 kubectl get remotemcpserver kagent-tool-server -n kagent
 ```
 
-Then apply the agent CRDs:
+Deploy the two specialist agents:
 ```bash
 kubectl apply -f agents/01-deploy-agent.yaml
 kubectl apply -f agents/02-healthcheck-agent.yaml
-kubectl apply -f agents/03-incident-agent.yaml
 ```
 
 Verify:
@@ -200,14 +354,13 @@ kubectl get agents -n kagent
 curl -s http://localhost:8083/api/agents | python3 -m json.tool
 ```
 
-You should see 3 agents:
+You should see 2 agents:
 - **k8s-deploy-agent** — 6 MCP tools, deploys with dry-run validation
 - **k8s-healthcheck-agent** — 5 read-only diagnostic tools
-- **incident-response-agent** — orchestrates the other two (`type: Agent`)
 
 ---
 
-## Step 7: Test an Agent
+## Step 8: Team A — Test the Specialists
 
 ### Via the kagent UI
 
@@ -236,7 +389,7 @@ curl -s -L -X POST http://localhost:8083/api/a2a/kagent/k8s-healthcheck-agent \
 
 ---
 
-## Step 8: Register Skills in agentregistry
+## Step 9: Team A — Register in agentregistry
 
 No CLI needed — just curl to the REST API:
 
@@ -271,20 +424,6 @@ curl -s -X POST http://localhost:12121/v0/skills \
     }
   }' | python3 -m json.tool
 
-# Register incident-response skill
-curl -s -X POST http://localhost:12121/v0/skills \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "incident-response",
-    "description": "Multi-agent incident response coordination with root cause analysis and remediation.",
-    "version": "1.0.0",
-    "title": "Incident Response Skill",
-    "category": "operations",
-    "repository": {
-      "url": "https://github.com/solo-io/multi-agent-skills-demo/tree/main/skills/incident-response",
-      "source": "github"
-    }
-  }' | python3 -m json.tool
 ```
 
 ### Register Agents
@@ -302,7 +441,7 @@ curl -s -X POST http://localhost:12121/v0/agents \
     "language": "go",
     "framework": "kagent",
     "modelProvider": "openai",
-    "modelName": "gpt-4o"
+    "modelName": "gpt-5.4-mini-2026-03-17"
   }' | python3 -m json.tool
 
 # Register k8s-healthcheck-agent
@@ -317,26 +456,12 @@ curl -s -X POST http://localhost:12121/v0/agents \
     "language": "go",
     "framework": "kagent",
     "modelProvider": "openai",
-    "modelName": "gpt-4o"
+    "modelName": "gpt-5.4-mini-2026-03-17"
   }' | python3 -m json.tool
 
-# Register incident-response-agent
-curl -s -X POST http://localhost:12121/v0/agents \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "incident-response-agent",
-    "version": "1.0.0",
-    "title": "Incident Response Agent",
-    "description": "Multi-agent orchestrator that coordinates deploy and healthcheck agents for incident response.",
-    "image": "ghcr.io/kagent-dev/kagent/controller:latest",
-    "language": "go",
-    "framework": "kagent",
-    "modelProvider": "openai",
-    "modelName": "gpt-4o"
-  }' | python3 -m json.tool
 ```
 
-### Register MCP Servers
+### Register MCP Servers + agentgateway
 
 ```bash
 # Register kagent-tool-server
@@ -360,29 +485,119 @@ curl -s -X POST http://localhost:12121/v0/servers \
     "title": "kagent Grafana MCP",
     "description": "MCP server for Grafana dashboard queries and observability data."
   }' | python3 -m json.tool
+
+# Register agentgateway
+curl -s -X POST http://localhost:12121/v0/servers \
+  -H "Content-Type: application/json" \
+  -d '{
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+    "name": "agentgateway-dev/agentgateway",
+    "version": "1.0.1",
+    "title": "agentgateway",
+    "description": "AI-native proxy for LLM, MCP, and A2A traffic with security policies, observability, and cost controls."
+  }' | python3 -m json.tool
 ```
 
 ### Verify
 
 ```bash
-# List all skills
+# Should show 2 skills (k8s-deploy, k8s-healthcheck)
 curl -s http://localhost:12121/v0/skills | python3 -m json.tool
 
-# List all agents
+# Should show 2 agents (k8s-deploy-agent, k8s-healthcheck-agent)
 curl -s http://localhost:12121/v0/agents | python3 -m json.tool
 
-# List all servers
+# Should show 3 servers (kagent-tool-server, kagent-grafana-mcp, agentgateway)
 curl -s http://localhost:12121/v0/servers | python3 -m json.tool
-
-# Search
-curl -s "http://localhost:12121/v0/skills?search=kubernetes" | python3 -m json.tool
 ```
 
-Browse the catalog at http://localhost:12121.
+Browse the catalog at http://localhost:12121 — you should see Team A's 2 skills and 2 agents. No incident agent yet.
 
 ---
 
-## Step 9: Run Agents & View Traces
+## Step 10: Team B — Discover & Compose the Incident Agent
+
+Team B (Platform Engineering) searches the catalog, finds Team A's work, and composes a higher-level agent.
+
+### Search the registry
+
+```bash
+# What kubernetes skills are available?
+curl -s "http://localhost:12121/v0/skills?search=kubernetes" | python3 -m json.tool
+
+# What agents are available?
+curl -s http://localhost:12121/v0/agents | python3 -m json.tool
+```
+
+Team B finds two specialist agents built by Team A. They compose them into an incident response agent:
+
+### Deploy the incident agent
+
+```bash
+cat agents/03-incident-agent.yaml
+```
+
+Note the tools section — it uses `type: Agent` to orchestrate Team A's agents:
+```yaml
+tools:
+  - type: Agent
+    agent:
+      name: k8s-deploy-agent
+  - type: Agent
+    agent:
+      name: k8s-healthcheck-agent
+```
+
+```bash
+kubectl apply -f agents/03-incident-agent.yaml
+```
+
+Verify:
+```bash
+kubectl get agents -n kagent
+```
+
+Team B didn't write a single kubectl command in their agent. They composed it from skills that already existed in the registry.
+
+### Team B registers their work back in the catalog
+
+```bash
+# Register incident-response skill
+curl -s -X POST http://localhost:12121/v0/skills \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "incident-response",
+    "description": "Multi-agent incident response coordination with root cause analysis and remediation.",
+    "version": "1.0.0",
+    "title": "Incident Response Skill",
+    "category": "operations",
+    "repository": {
+      "url": "https://github.com/solo-io/multi-agent-skills-demo/tree/main/skills/incident-response",
+      "source": "github"
+    }
+  }' | python3 -m json.tool
+
+# Register incident-response-agent
+curl -s -X POST http://localhost:12121/v0/agents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "incident-response-agent",
+    "version": "1.0.0",
+    "title": "Incident Response Agent",
+    "description": "Multi-agent orchestrator that coordinates deploy and healthcheck agents for incident response.",
+    "image": "ghcr.io/kagent-dev/kagent/controller:latest",
+    "language": "go",
+    "framework": "kagent",
+    "modelProvider": "openai",
+    "modelName": "gpt-5.4-mini-2026-03-17"
+  }' | python3 -m json.tool
+```
+
+Now the registry has all 3 skills and 3 agents. Browse http://localhost:12121 to verify.
+
+---
+
+## Step 11: Run Agents & View Traces
 
 ### Deploy a test workload
 
@@ -473,9 +688,11 @@ rm -rf /tmp/agentevals
 
 | Issue | Fix |
 |-------|-----|
-| curl to :8083 fails | Re-run port-forwards (Step 5) or `source ./scripts/ensure-portforward.sh` |
+| curl to :8083 fails | Re-run port-forwards (Step 6) or `source ./scripts/ensure-portforward.sh` |
 | No traces in agentevals | Check kagent OTel config: `kubectl get pods -n kagent` and logs |
 | agentregistry :12121 down | `kubectl get pods -n agentregistry` — check for CrashLoopBackOff |
 | agentregistry CrashLoopBackOff | Likely pgvector issue — ensure you used the pgvector image flags |
+| agentgateway proxy not ready | `kubectl get gateway,deploy -n agentgateway-system` |
+| LLM calls failing through gateway | Check: `kubectl logs -l app.kubernetes.io/name=agentgateway -n agentgateway-system` |
 | kind OOM | Docker Desktop → Resources → 8GB+ RAM |
 | Helm OCI 403 | `echo $GH_TOKEN | helm registry login ghcr.io -u x --password-stdin` |

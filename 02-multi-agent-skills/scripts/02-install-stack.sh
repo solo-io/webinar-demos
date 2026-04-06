@@ -3,8 +3,8 @@ set -euo pipefail
 
 #############################################################
 # 02-install-stack.sh
-# Installs agentevals, kagent, and agentregistry into the
-# kind cluster. Requires OPENAI_API_KEY env var.
+# Installs agentevals, agentgateway, kagent, and agentregistry
+# into the kind cluster. Requires OPENAI_API_KEY env var.
 #
 # Prerequisites: docker, kind, kubectl, helm
 # No other local CLI installs needed — everything runs
@@ -51,16 +51,77 @@ helm upgrade --install agentevals \
   "${TEMP_DIR}/agentevals/charts/agentevals" \
   --namespace default \
   --set tag=0.6.3 \
+  --set 'command={agentevals}' \
+  --set 'args={serve,--dev}' \
+  --set env[0].name=OPENAI_API_KEY \
+  --set env[0].value="${OPENAI_API_KEY}" \
   --wait --timeout 300s
 
 echo "==> agentevals installed."
 
 ###########################################################
-# Step 2: Install kagent with OTel tracing → agentevals
+# Step 2: Install agentgateway (AI-native proxy for LLM/MCP/A2A)
 ###########################################################
 echo ""
 echo "=========================================="
-echo " Step 2: Install kagent"
+echo " Step 2: Install agentgateway"
+echo "=========================================="
+
+echo "==> Installing Gateway API CRDs..."
+kubectl apply --server-side --force-conflicts -f \
+  https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml
+
+echo "==> Installing agentgateway CRDs..."
+helm upgrade -i agentgateway-crds \
+  oci://cr.agentgateway.dev/charts/agentgateway-crds \
+  --create-namespace \
+  --namespace agentgateway-system \
+  --version v1.0.1
+
+echo "==> Installing agentgateway control plane..."
+helm upgrade -i agentgateway \
+  oci://cr.agentgateway.dev/charts/agentgateway \
+  --namespace agentgateway-system \
+  --version v1.0.1 \
+  --wait --timeout 180s
+
+echo "==> Creating OpenAI secret for agentgateway..."
+kubectl create secret generic openai-secret \
+  -n agentgateway-system \
+  --from-literal=Authorization="Bearer ${OPENAI_API_KEY}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+echo "==> Applying gateway resources..."
+kubectl apply -f "${PROJECT_DIR}/gateway/gateway.yaml"
+kubectl apply -f "${PROJECT_DIR}/gateway/openai-backend.yaml"
+kubectl apply -f "${PROJECT_DIR}/gateway/openai-route.yaml"
+
+echo "==> Waiting for gateway proxy to be ready..."
+sleep 5
+kubectl get gateway ai-gateway -n agentgateway-system 2>/dev/null || true
+kubectl get deploy -n agentgateway-system 2>/dev/null || true
+
+# Wait for the proxy deployment to become ready
+echo "  Waiting for proxy pods..."
+for i in $(seq 1 30); do
+  if kubectl get deploy -n agentgateway-system -o name 2>/dev/null | grep -v controller | head -1 | xargs -I{} kubectl wait --for=condition=available {} -n agentgateway-system --timeout=5s 2>/dev/null; then
+    echo "  Gateway proxy is ready."
+    break
+  fi
+  sleep 2
+done
+
+echo "==> agentgateway installed."
+echo ""
+echo "  All LLM traffic will flow through agentgateway."
+echo "  Gateway: ai-gateway → OpenAI backend"
+
+###########################################################
+# Step 3: Install kagent with OTel tracing → agentevals
+###########################################################
+echo ""
+echo "=========================================="
+echo " Step 3: Install kagent"
 echo "=========================================="
 
 echo "==> Installing kagent CRDs..."
@@ -73,10 +134,11 @@ helm upgrade --install kagent oci://ghcr.io/kagent-dev/kagent/helm/kagent \
   --namespace kagent \
   --set providers.default=openAI \
   --set providers.openAI.apiKey="${OPENAI_API_KEY}" \
-  --set providers.openAI.model=gpt-4o \
+  --set providers.openAI.model=gpt-5.4-mini-2026-03-17 \
   --set otel.tracing.enabled=true \
   --set otel.tracing.exporter.otlp.endpoint="agentevals.default.svc.cluster.local:4317" \
   --set otel.tracing.exporter.otlp.insecure=true \
+  --set otel.tracing.exporter.otlp.protocol="grpc" \
   --set agents.istio-agent.enabled=false \
   --set agents.kgateway-agent.enabled=false \
   --set agents.promql-agent.enabled=false \
@@ -92,16 +154,33 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=kagent \
   --namespace kagent --timeout=120s 2>/dev/null || \
   echo "  (some pods may still be starting)"
 
+# Patch ModelConfig to route LLM traffic through agentgateway
+echo "==> Patching ModelConfig to route through agentgateway..."
+GATEWAY_SVC=$(kubectl get svc -n agentgateway-system -o name 2>/dev/null | grep -v controller | head -1 | sed 's|service/||')
+if [ -n "${GATEWAY_SVC}" ]; then
+  GATEWAY_URL="http://${GATEWAY_SVC}.agentgateway-system.svc:80/openai/v1"
+  echo "  Gateway service: ${GATEWAY_SVC}"
+  echo "  Setting baseUrl: ${GATEWAY_URL}"
+  kubectl patch modelconfig default-model-config -n kagent \
+    --type merge \
+    -p "{\"spec\":{\"baseUrl\":\"${GATEWAY_URL}\"}}" 2>/dev/null || \
+    echo "  (ModelConfig patch skipped — may need manual config)"
+else
+  echo "  WARNING: Could not find gateway service. LLM traffic will go direct to OpenAI."
+  echo "  You can patch manually later:"
+  echo "    kubectl patch modelconfig default-model-config -n kagent --type merge -p '{\"spec\":{\"baseUrl\":\"http://ai-gateway.agentgateway-system.svc:80/openai/v1\"}}'"
+fi
+
 echo "==> Verifying kagent resources..."
 kubectl get modelconfig -n kagent
 kubectl get remotemcpserver -n kagent
 
 ###########################################################
-# Step 3: Install agentregistry
+# Step 4: Install agentregistry
 ###########################################################
 echo ""
 echo "=========================================="
-echo " Step 3: Install agentregistry"
+echo " Step 4: Install agentregistry"
 echo "=========================================="
 
 echo "==> Installing agentregistry into cluster..."
@@ -127,32 +206,39 @@ helm upgrade --install agentregistry \
 echo "==> agentregistry installed."
 
 ###########################################################
-# Step 4: Set up port-forwarding
+# Step 5: Set up port-forwarding
 ###########################################################
 echo ""
 echo "=========================================="
-echo " Step 4: Set up access"
+echo " Step 5: Set up access"
 echo "=========================================="
 
 pkill -f "port-forward.*agentevals" 2>/dev/null || true
 pkill -f "port-forward.*kagent" 2>/dev/null || true
+pkill -f "port-forward.*agentgateway" 2>/dev/null || true
 
 echo "==> Starting port-forwards..."
 kubectl port-forward svc/agentevals -n default 8001:8001 &>/dev/null &
-kubectl port-forward svc/agentevals -n default 4318:4318 &>/dev/null &
+kubectl port-forward svc/agentevals -n default 4317:4317 &>/dev/null &
 kubectl port-forward svc/kagent-controller -n kagent 8083:8083 &>/dev/null &
 kubectl port-forward svc/kagent-ui -n kagent 8082:8080 &>/dev/null &
+
+# agentgateway proxy — forward to the gateway service
+if [ -n "${GATEWAY_SVC:-}" ]; then
+  kubectl port-forward "svc/${GATEWAY_SVC}" -n agentgateway-system 9090:80 &>/dev/null &
+fi
 
 sleep 2
 
 echo ""
-echo "  agentevals UI:    http://localhost:8001"
-echo "  kagent UI:        http://localhost:8082"
-echo "  kagent API:       http://localhost:8083"
-echo "  agentregistry UI: http://localhost:12121  (NodePort)"
+echo "  agentevals UI:       http://localhost:8001"
+echo "  kagent UI:           http://localhost:8082"
+echo "  kagent API:          http://localhost:8083"
+echo "  agentgateway proxy:  http://localhost:9090"
+echo "  agentregistry UI:    http://localhost:12121  (NodePort)"
 
 ###########################################################
-# Step 5: Verify the stack
+# Step 6: Verify the stack
 ###########################################################
 echo ""
 echo "=========================================="
@@ -161,6 +247,9 @@ echo "=========================================="
 echo ""
 echo "--- kagent ---"
 kubectl get pods -n kagent
+echo ""
+echo "--- agentgateway ---"
+kubectl get pods -n agentgateway-system
 echo ""
 echo "--- agentregistry ---"
 kubectl get pods -n agentregistry
@@ -175,6 +264,9 @@ echo "=========================================="
 echo ""
 echo "  List agents:"
 echo "    curl -s http://localhost:8083/api/agents | python3 -m json.tool"
+echo ""
+echo "  Test gateway proxy:"
+echo "    curl -s http://localhost:9090/openai/v1/models"
 echo ""
 echo "  If port-forwards die, re-run:"
 echo "    source ./scripts/ensure-portforward.sh"

@@ -1,6 +1,6 @@
 # Multi-Agent Skills: Build, Register, Evaluate
 
-> Build 3 multi-agents with skills in kagent, register them in AgentRegistry, and evaluate them with AgentEvals — all in a kind cluster.
+> Build 3 multi-agents with skills in kagent, register them in AgentRegistry, route LLM traffic through agentgateway, and evaluate them with AgentEvals — all in a kind cluster.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Only 4 tools needed locally:
 
 Plus an OpenAI API key: `export OPENAI_API_KEY='sk-...'`
 
-> **No other CLIs needed.** kagent, agentregistry, and agentevals all run in-cluster with web UIs and REST APIs.
+> **No other CLIs needed.** kagent, agentgateway, agentregistry, and agentevals all run in-cluster with web UIs and REST APIs.
 
 ## Architecture
 
@@ -30,14 +30,21 @@ Plus an OpenAI API key: `export OPENAI_API_KEY='sk-...'`
 │  │    ├── calls → k8s-deploy-agent (6 MCP tools)          │ │
 │  │    └── calls → k8s-healthcheck-agent (5 MCP tools)     │ │
 │  │                                                         │ │
-│  │  Model: gpt-4o  |  OTel tracing → agentevals :4317     │ │
+│  │  Model: gpt-5.4-mini  |  OTel tracing → agentevals     │ │
+│  │  LLM traffic → agentgateway → OpenAI                   │ │
 │  └─────────────────────────────────────────────────────────┘ │
 │                                                               │
 │  ┌──────────────────────┐  ┌──────────────────────────────┐ │
-│  │ agentregistry        │  │ agentevals (ns: default)     │ │
-│  │ (ns: agentregistry)  │  │ OTLP receiver :4317/:4318   │ │
-│  │ REST API :12121      │  │ Web UI + API :8001           │ │
-│  └──────────────────────┘  └──────────────────────────────┘ │
+│  │ agentgateway         │  │ agentregistry                │ │
+│  │ (ns: agentgateway-   │  │ (ns: agentregistry)          │ │
+│  │  system)              │  │ REST API :12121              │ │
+│  │ LLM proxy :80         │  └──────────────────────────────┘ │
+│  │ Gateway API CRDs     │                                    │
+│  └──────────────────────┘  ┌──────────────────────────────┐ │
+│                             │ agentevals (ns: default)     │ │
+│                             │ OTLP receiver :4317 (gRPC)   │ │
+│                             │ Web UI + API :8001           │ │
+│                             └──────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,10 +54,11 @@ Plus an OpenAI API key: `export OPENAI_API_KEY='sk-...'`
 export OPENAI_API_KEY='sk-...'
 
 ./scripts/01-setup-kind.sh        # Create kind cluster
-./scripts/02-install-stack.sh     # Install everything
-./scripts/03-deploy-agents.sh     # Deploy 3 agents
-./scripts/04-register-agents.sh   # Register skills
-./scripts/05-run-and-eval.sh      # Run agents + evaluate
+./scripts/02-install-stack.sh     # Install kagent, agentgateway, agentregistry, agentevals
+./scripts/03-deploy-agents.sh     # Team A: deploy specialist agents
+./scripts/04-register-agents.sh   # Team A: register skills, agents, servers in catalog
+./scripts/05-compose-agent.sh     # Team B: discover skills, compose incident agent
+./scripts/06-run-and-eval.sh      # Run agents, view traces, evaluate
 ```
 
 If you restart your terminal:
@@ -64,6 +72,7 @@ source ./scripts/ensure-portforward.sh
 |---------|-----|-----|
 | kagent UI | http://localhost:8082 | Chat with agents interactively |
 | kagent API | http://localhost:8083 | REST + A2A protocol |
+| agentgateway proxy | http://localhost:9090 | LLM/MCP/A2A proxy |
 | agentregistry | http://localhost:12121 | Skill catalog (NodePort) |
 | agentevals | http://localhost:8001 | Trace viewer + eval engine |
 
@@ -74,6 +83,15 @@ source ./scripts/ensure-portforward.sh
 | `k8s-deploy-agent` | Deployment specialist | `k8s_apply_manifest`, `k8s_get_resources`, `k8s_get_events`, `k8s_get_pod_logs`, `k8s_describe_resource`, `k8s_delete_resource` |
 | `k8s-healthcheck-agent` | Health diagnostics | `k8s_get_resources`, `k8s_describe_resource`, `k8s_get_resource_yaml`, `k8s_get_events`, `k8s_get_pod_logs` |
 | `incident-response-agent` | Orchestrator | `k8s-deploy-agent`, `k8s-healthcheck-agent` (agent-as-tool) |
+
+## The Full Stack
+
+| Component | Role | Project |
+|-----------|------|---------|
+| **kagent** | Build & run Kubernetes-native AI agents | [kagent.dev](https://kagent.dev) |
+| **agentgateway** | Govern LLM, MCP, and A2A traffic | [agentgateway.dev](https://agentgateway.dev) |
+| **agentregistry** | Discover & share skills across teams | [agentregistry](https://github.com/agentregistry-dev/agentregistry) |
+| **agentevals** | Trust & verify with OTel traces + evals | [agentevals](https://github.com/agentevals-dev/agentevals) |
 
 ## How to Interact (No CLIs)
 
@@ -101,6 +119,11 @@ curl -s -L -X POST http://localhost:8083/api/a2a/kagent/k8s-healthcheck-agent \
 ### List agents via API
 ```bash
 curl -s http://localhost:8083/api/agents | python3 -m json.tool
+```
+
+### Test the gateway proxy
+```bash
+curl -s http://localhost:9090/openai/v1/models
 ```
 
 ### Register skills via API
@@ -142,6 +165,7 @@ rm -rf .tmp/
 | curl to :8083 fails | `source ./scripts/ensure-portforward.sh` |
 | No traces in agentevals | Check: `kubectl logs -l app.kubernetes.io/name=agentevals` |
 | agentregistry :12121 down | Check: `kubectl get pods -n agentregistry` |
+| agentgateway proxy not ready | Check: `kubectl get gateway,deploy -n agentgateway-system` |
 | Helm OCI pull 403 | `echo $GH_TOKEN \| helm registry login ghcr.io -u x --password-stdin` |
 | kind OOM | Docker Desktop → Resources → 8GB+ RAM |
 | PVC stuck Pending | `kubectl get sc` — kind has `standard` by default |
@@ -149,5 +173,6 @@ rm -rf .tmp/
 ## Links
 
 - [kagent.dev](https://kagent.dev)
+- [agentgateway.dev](https://agentgateway.dev)
 - [agentregistry](https://github.com/agentregistry-dev/agentregistry)
 - [agentevals](https://github.com/agentevals-dev/agentevals)
