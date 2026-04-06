@@ -449,10 +449,20 @@
   <!-- SKILLS & COMPOSITION -->
   <h2 id="skills">Skills &amp; Composition</h2>
   <p>
-    A <strong>skill</strong> is a structured document that captures operational expertise: what tools
-    to use, in what order, what to look for, and how to format the output. Skills are embedded as system
-    messages in agent CRDs.
+    A <strong>skill</strong> is a structured SKILL.md document that captures operational expertise: what tools
+    to use, in what order, what to look for, and how to format the output. Skills are pulled from
+    <strong>git</strong> at deploy time via kagent's <code>spec.skills.gitRefs</code>.
   </p>
+
+  <h4>How skills are loaded</h4>
+  <p>Each agent CRD references its skill via a git URL. When the agent pod starts, a <code>skills-init</code>
+  init container clones the repo, extracts the SKILL.md from the specified path, and mounts it into the pod:</p>
+  <pre><span class="field">skills</span>:
+  <span class="field">gitRefs</span>:
+    - <span class="field">url</span>: <span class="string">https://github.com/solo-io/webinar-demos</span>
+      <span class="field">ref</span>: <span class="string">main</span>
+      <span class="field">path</span>: <span class="string">02-multi-agent-skills/skills/k8s-healthcheck</span>
+      <span class="field">name</span>: <span class="string">k8s-healthcheck</span></pre>
 
   <h4>What makes a skill?</h4>
   <ul>
@@ -466,8 +476,8 @@
   <table>
     <thead><tr><th>Step</th><th>Team</th><th>Action</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>Team A (SRE)</td><td>Write skills as structured markdown, encode in agent CRDs</td></tr>
-      <tr><td>2</td><td>Team A</td><td>Deploy specialist agents with <code>kubectl apply</code></td></tr>
+      <tr><td>1</td><td>Team A (SRE)</td><td>Write skills as SKILL.md files in a git repo</td></tr>
+      <tr><td>2</td><td>Team A</td><td>Deploy agents with <code>kubectl apply</code> &mdash; skills pulled from git via <code>gitRefs</code></td></tr>
       <tr><td>3</td><td>Team A</td><td>Register skills, agents, and servers in agentregistry</td></tr>
       <tr><td>4</td><td>Team B (Platform)</td><td>Search the registry: <code>GET /v0/skills?search=k8s</code></td></tr>
       <tr><td>5</td><td>Team B</td><td>Compose an orchestrator agent using <code>type: Agent</code> tools</td></tr>

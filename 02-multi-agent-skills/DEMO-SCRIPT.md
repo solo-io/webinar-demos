@@ -123,9 +123,20 @@ And the key thing — **this skill is portable**. It's not buried in one agent's
 cat agents/02-healthcheck-agent.yaml
 ```
 
-"Now the agent. This is a Kubernetes custom resource — `kagent.dev/v1alpha2`. If you can write a Deployment YAML, you can write this. Model config, tools from the MCP server, skill instructions in the system message.
+"Now the agent. This is a Kubernetes custom resource — `kagent.dev/v1alpha2`. If you can write a Deployment YAML, you can write this. Look at this:
 
-`kubectl apply` and it's running. Same gitops workflow your team already uses."
+```yaml
+skills:
+  gitRefs:
+    - url: https://github.com/solo-io/webinar-demos
+      ref: main
+      path: 02-multi-agent-skills/skills/k8s-healthcheck
+      name: k8s-healthcheck
+```
+
+The agent pulls its skill straight from git. When kagent deploys this agent, an init container clones the repo, extracts the SKILL.md, and mounts it into the pod. The skill lives in git — versioned, tagged, reviewable. Same GitOps workflow your team already uses.
+
+Model config, tools from the MCP server, skill from git. `kubectl apply` and it's running."
 
 #### Deploy the specialists
 
@@ -203,7 +214,9 @@ Skills need the same thing."
 ./scripts/04-register-agents.sh
 ```
 
-"Team A registers everything. Skills, agents, MCP servers, and agentgateway itself. Just REST API calls — `POST /v0/skills`, `POST /v0/agents`, `POST /v0/servers`. Name, description, version, framework. Like pushing a container image to a registry."
+"Team A registers everything. Skills, agents, MCP servers, and agentgateway itself. Just REST API calls — `POST /v0/skills`, `POST /v0/agents`, `POST /v0/servers`. Name, description, version, repo URL. Like pushing a container image to a registry.
+
+And notice — the skills point back to the git repo. When someone finds the skill in the catalog, they get the repo URL. They can add it to their own agent's `gitRefs` and kagent pulls it automatically. No copy-paste. No Slack thread. Git URL. Done."
 
 #### Browse the registry
 
@@ -284,9 +297,9 @@ It's an incident commander. It delegates to specialists it found in the catalog.
 kubectl apply -f agents/03-incident-agent.yaml
 ```
 
-"One YAML file. Four lines of tools config. Team B just built multi-agent incident response without writing a single kubectl command. They composed it from skills that already existed.
+"One YAML file. The tools are Team A's agents. The skill is pulled from git — same repo Team A published to. Team B just built multi-agent incident response without writing a single kubectl command. They composed it from skills that already existed.
 
-**That's the power of shared skills.** Maria left the company two months ago — but her healthcheck expertise is running inside Team B's agent right now."
+**That's the power of shared skills.** Maria left the company two months ago — but her healthcheck expertise is pulled from git and running inside Team B's agent right now. Versioned. Tagged. Auditable."
 
 #### Run the incident scenario
 
@@ -402,7 +415,7 @@ No re-runs. You record the trace once, evaluate as many times as you want."
 
 Six things to take away:
 
-1. **Skills are the new unit of operational knowledge.** Not runbooks. Not wiki pages. Executable, versioned, composable.
+1. **Skills are the new unit of operational knowledge.** Not runbooks. Not wiki pages. Executable, versioned, composable. Pulled from git at deploy time — same GitOps you already use.
 
 2. **Agents are Kubernetes-native.** CRDs. `kubectl apply`. GitOps. The workflow you already know.
 

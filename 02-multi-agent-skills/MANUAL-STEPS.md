@@ -336,6 +336,17 @@ source ./scripts/ensure-portforward.sh
 
 Team A (SRE) builds and deploys the specialist agents — the building blocks.
 
+Each agent CRD includes a `skills.gitRefs` section that pulls the skill's SKILL.md from git at deploy time. kagent's init container clones the repo, extracts the skill, and mounts it into the agent pod:
+
+```yaml
+skills:
+  gitRefs:
+    - url: https://github.com/solo-io/webinar-demos
+      ref: main
+      path: 02-multi-agent-skills/skills/k8s-healthcheck
+      name: k8s-healthcheck
+```
+
 First confirm the auto-created resources exist:
 ```bash
 kubectl get modelconfig default-model-config -n kagent

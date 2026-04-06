@@ -78,11 +78,13 @@ source ./scripts/ensure-portforward.sh
 
 ## The 3 Agents
 
-| Agent | Role | Tools |
-|-------|------|-------|
-| `k8s-deploy-agent` | Deployment specialist | `k8s_apply_manifest`, `k8s_get_resources`, `k8s_get_events`, `k8s_get_pod_logs`, `k8s_describe_resource`, `k8s_delete_resource` |
-| `k8s-healthcheck-agent` | Health diagnostics | `k8s_get_resources`, `k8s_describe_resource`, `k8s_get_resource_yaml`, `k8s_get_events`, `k8s_get_pod_logs` |
-| `incident-response-agent` | Orchestrator | `k8s-deploy-agent`, `k8s-healthcheck-agent` (agent-as-tool) |
+| Agent | Role | Tools | Skill (from git) |
+|-------|------|-------|------|
+| `k8s-deploy-agent` | Deployment specialist | `k8s_apply_manifest`, `k8s_get_resources`, `k8s_get_events`, `k8s_get_pod_logs`, `k8s_describe_resource`, `k8s_delete_resource` | `k8s-deploy` |
+| `k8s-healthcheck-agent` | Health diagnostics | `k8s_get_resources`, `k8s_describe_resource`, `k8s_get_resource_yaml`, `k8s_get_events`, `k8s_get_pod_logs` | `k8s-healthcheck` |
+| `incident-response-agent` | Orchestrator | `k8s-deploy-agent`, `k8s-healthcheck-agent` (agent-as-tool) | `incident-response` |
+
+Each agent pulls its skill from git via `spec.skills.gitRefs` — kagent's init container clones the repo and mounts the SKILL.md into the pod at deploy time.
 
 ## The Full Stack
 
