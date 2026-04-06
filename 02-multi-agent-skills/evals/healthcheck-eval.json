@@ -1,0 +1,162 @@
+{
+  "eval_set_id": "k8s-healthcheck-agent-eval",
+  "name": "K8s Healthcheck Agent Evaluation",
+  "description": "Validates that the healthcheck agent inspects all relevant resources and produces structured reports",
+  "eval_cases": [
+    {
+      "eval_id": "healthy-deployment-check",
+      "conversation": [
+        {
+          "invocation_id": "health-001",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Check the health of the nginx-demo deployment in default namespace"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "RESOURCE: nginx-demo in default\nSTATUS: Healthy\nPODS: 3/3 ready\n\nNo issues detected. All pods are running with no error events in the last 60 seconds."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "id": "call-1",
+                "name": "k8s_get_resources",
+                "args": {
+                  "resource": "deployment",
+                  "name": "nginx-demo",
+                  "namespace": "default"
+                }
+              },
+              {
+                "id": "call-2",
+                "name": "k8s_get_resources",
+                "args": {
+                  "resource": "pods",
+                  "label_selector": "app=nginx-demo",
+                  "namespace": "default"
+                }
+              },
+              {
+                "id": "call-3",
+                "name": "k8s_get_resources",
+                "args": {
+                  "resource": "events",
+                  "namespace": "default"
+                }
+              }
+            ],
+            "tool_responses": [
+              {
+                "id": "call-1",
+                "name": "k8s_get_resources",
+                "response": {
+                  "result": "deployment nginx-demo: 3/3 replicas available, up-to-date"
+                }
+              },
+              {
+                "id": "call-2",
+                "name": "k8s_get_resources",
+                "response": {
+                  "result": "3 pods: all Running, all Ready (1/1 containers)"
+                }
+              },
+              {
+                "id": "call-3",
+                "name": "k8s_get_resources",
+                "response": {
+                  "result": "No warning events in last 60 seconds"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "unhealthy-pod-diagnosis",
+      "conversation": [
+        {
+          "invocation_id": "health-002",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Why is the broken-app deployment failing in test namespace?"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "RESOURCE: broken-app in test\nSTATUS: Unhealthy\nPODS: 0/3 ready\n\nISSUES:\n- [CRITICAL] ImagePullBackOff on all 3 pods\n  EVIDENCE: Event 'Failed to pull image broken-app:latest - image not found'\n  FIX: Verify the image name and tag. Check registry authentication."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "id": "call-1",
+                "name": "k8s_get_resources",
+                "args": {
+                  "resource": "deployment",
+                  "name": "broken-app",
+                  "namespace": "test"
+                }
+              },
+              {
+                "id": "call-2",
+                "name": "k8s_get_resources",
+                "args": {
+                  "resource": "pods",
+                  "label_selector": "app=broken-app",
+                  "namespace": "test"
+                }
+              },
+              {
+                "id": "call-3",
+                "name": "k8s_get_resources",
+                "args": {
+                  "resource": "events",
+                  "namespace": "test",
+                  "field_selector": "involvedObject.name=broken-app"
+                }
+              }
+            ],
+            "tool_responses": [
+              {
+                "id": "call-1",
+                "name": "k8s_get_resources",
+                "response": {
+                  "result": "deployment broken-app: 0/3 replicas available"
+                }
+              },
+              {
+                "id": "call-2",
+                "name": "k8s_get_resources",
+                "response": {
+                  "result": "3 pods: all Pending, ImagePullBackOff"
+                }
+              },
+              {
+                "id": "call-3",
+                "name": "k8s_get_resources",
+                "response": {
+                  "result": "Warning: Failed to pull image broken-app:latest - image not found"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

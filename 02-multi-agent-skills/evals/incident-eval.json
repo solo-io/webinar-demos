@@ -1,0 +1,137 @@
+{
+  "eval_set_id": "incident-response-agent-eval",
+  "name": "Incident Response Agent Evaluation",
+  "description": "Validates that the incident agent properly delegates to sub-agents and produces a coherent incident summary",
+  "eval_cases": [
+    {
+      "eval_id": "503-error-investigation",
+      "conversation": [
+        {
+          "invocation_id": "incident-001",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "We are seeing 503 errors from nginx-demo in default namespace after the last deploy. Investigate."
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "INCIDENT SUMMARY\n================\nAffected: nginx-demo in default\nDuration: 14:30 to 14:45 UTC\nSeverity: P2\nRoot Cause: Bad image tag in latest deployment caused ImagePullBackOff\n\nTIMELINE:\n- 14:30: Deployment updated with image nginx:bad-tag\n- 14:31: Pods enter ImagePullBackOff\n- 14:32: Service endpoints depopulated, 503s begin\n- 14:40: Rollback initiated\n- 14:42: Previous version restored, pods healthy\n- 14:45: Service endpoints repopulated, 503s resolved\n\nACTIONS TAKEN:\n- Health check confirmed 0/3 pods ready with ImagePullBackOff\n- Rollout history showed bad image tag in revision 3\n- Rolled back to revision 2\n- Verified 3/3 pods ready after rollback\n\nSTATUS: Resolved"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "id": "call-1",
+                "name": "k8s-healthcheck-agent",
+                "args": {
+                  "message": "Check health of nginx-demo deployment in default namespace"
+                }
+              },
+              {
+                "id": "call-2",
+                "name": "k8s-deploy-agent",
+                "args": {
+                  "message": "Show rollout history for nginx-demo in default namespace"
+                }
+              },
+              {
+                "id": "call-3",
+                "name": "k8s-deploy-agent",
+                "args": {
+                  "message": "Rollback nginx-demo in default namespace to previous revision"
+                }
+              },
+              {
+                "id": "call-4",
+                "name": "k8s-healthcheck-agent",
+                "args": {
+                  "message": "Verify nginx-demo in default is healthy after rollback"
+                }
+              }
+            ],
+            "tool_responses": [
+              {
+                "id": "call-1",
+                "name": "k8s-healthcheck-agent",
+                "response": {
+                  "result": "RESOURCE: nginx-demo in default | STATUS: Unhealthy | PODS: 0/3 ready | ImagePullBackOff on all pods"
+                }
+              },
+              {
+                "id": "call-2",
+                "name": "k8s-deploy-agent",
+                "response": {
+                  "result": "Revision 3 (current): nginx:bad-tag | Revision 2: nginx:1.25 | Revision 1: nginx:1.24"
+                }
+              },
+              {
+                "id": "call-3",
+                "name": "k8s-deploy-agent",
+                "response": {
+                  "result": "Rolled back to revision 2. Rollout status: successfully rolled out."
+                }
+              },
+              {
+                "id": "call-4",
+                "name": "k8s-healthcheck-agent",
+                "response": {
+                  "result": "RESOURCE: nginx-demo in default | STATUS: Healthy | PODS: 3/3 ready | No issues"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "delegation-check",
+      "conversation": [
+        {
+          "invocation_id": "incident-002",
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Something is wrong with our app, pods keep restarting in the demo namespace"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {
+                "text": "INCIDENT SUMMARY\n================\nAffected: app in demo\nSeverity: P3\nRoot Cause: OOMKilled — container memory limit too low\n\nACTIONS TAKEN:\n- Delegated health check to specialist agent\n- Identified CrashLoopBackOff with OOMKilled reason\n\nRECOMMENDATION: Increase memory limits from 128Mi to 256Mi\n\nSTATUS: Investigating"
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "id": "call-1",
+                "name": "k8s-healthcheck-agent",
+                "args": {
+                  "message": "Check health of all deployments in demo namespace, pods are restarting"
+                }
+              }
+            ],
+            "tool_responses": [
+              {
+                "id": "call-1",
+                "name": "k8s-healthcheck-agent",
+                "response": {
+                  "result": "RESOURCE: app in demo | STATUS: Unhealthy | PODS: 1/3 ready | CrashLoopBackOff: OOMKilled, memory limit 128Mi exceeded"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
