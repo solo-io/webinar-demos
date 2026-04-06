@@ -47,7 +47,7 @@ _ensure_pf_dynamic() {
 
 echo "==> Ensuring port-forwards are running..."
 _ensure_pf agentevals  default  8001 8001 "agentevals UI"
-_ensure_pf agentevals  default  4317 4317 "agentevals OTLP (gRPC)"
+_ensure_pf agentevals  default  4318 4318 "agentevals OTLP"
 _ensure_pf kagent-controller kagent 8083 8083 "kagent API"
 _ensure_pf kagent-ui         kagent 8082 8080 "kagent UI"
 _ensure_pf_dynamic agentgateway-system 9090 80 "agentgateway proxy"

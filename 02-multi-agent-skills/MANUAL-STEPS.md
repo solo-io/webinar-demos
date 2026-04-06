@@ -209,9 +209,9 @@ helm upgrade --install kagent oci://ghcr.io/kagent-dev/kagent/helm/kagent \
   --set providers.openAI.apiKey="${OPENAI_API_KEY}" \
   --set providers.openAI.model=gpt-5.4-mini-2026-03-17 \
   --set otel.tracing.enabled=true \
-  --set otel.tracing.exporter.otlp.endpoint="agentevals.default.svc.cluster.local:4317" \
+  --set otel.tracing.exporter.otlp.endpoint="http://agentevals.default.svc.cluster.local:4318/v1/traces" \
   --set otel.tracing.exporter.otlp.insecure=true \
-  --set otel.tracing.exporter.otlp.protocol="grpc" \
+  --set otel.tracing.exporter.otlp.protocol="http/protobuf" \
   --set agents.istio-agent.enabled=false \
   --set agents.kgateway-agent.enabled=false \
   --set agents.promql-agent.enabled=false \
@@ -295,7 +295,7 @@ pkill -f "port-forward.*agentgateway" 2>/dev/null || true
 
 # agentevals UI + OTLP
 kubectl port-forward svc/agentevals -n default 8001:8001 &>/dev/null &
-kubectl port-forward svc/agentevals -n default 4317:4317 &>/dev/null &
+kubectl port-forward svc/agentevals -n default 4318:4318 &>/dev/null &
 
 # kagent API + UI (note: kagent-ui listens on port 8080 internally)
 kubectl port-forward svc/kagent-controller -n kagent 8083:8083 &>/dev/null &

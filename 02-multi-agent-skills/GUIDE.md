@@ -42,7 +42,7 @@ Plus an OpenAI API key: `export OPENAI_API_KEY='sk-...'`
 │  │ Gateway API CRDs     │                                    │
 │  └──────────────────────┘  ┌──────────────────────────────┐ │
 │                             │ agentevals (ns: default)     │ │
-│                             │ OTLP receiver :4317 (gRPC)   │ │
+│                             │ OTLP receiver :4318          │ │
 │                             │ Web UI + API :8001           │ │
 │                             └──────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘

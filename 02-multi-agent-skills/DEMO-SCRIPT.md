@@ -345,7 +345,7 @@ That's what agentevals solves."
 "Every agent call we've made today is already here. We didn't configure any exporters. When we installed kagent, we set one Helm value:
 
 ```
-otel.tracing.exporter.otlp.endpoint=agentevals.default.svc.cluster.local:4317
+otel.tracing.exporter.otlp.endpoint=http://agentevals.default.svc.cluster.local:4318/v1/traces
 ```
 
 That's it. OTel traces. Same protocol you use for your microservices.
