@@ -294,7 +294,8 @@
 &#9474;  &#9474;    &#9500;&#9472;&#9472; calls &#8594; k8s-deploy-agent (6 MCP tools)          &#9474; &#9474;
 &#9474;  &#9474;    &#9492;&#9472;&#9472; calls &#8594; k8s-healthcheck-agent (5 MCP tools)     &#9474; &#9474;
 &#9474;  &#9474;                                                         &#9474; &#9474;
-&#9474;  &#9474;  Model: gpt-5.4-mini  |  OTel tracing &#8594; agentevals     &#9474; &#9474;
+&#9474;  &#9474;  Model: gpt-5.4-mini  |  Skills from git               &#9474; &#9474;
+&#9474;  &#9474;  OTel traces &#8594; OTel Collector &#8594; agentevals             &#9474; &#9474;
 &#9474;  &#9474;  LLM traffic &#8594; agentgateway &#8594; OpenAI                   &#9474; &#9474;
 &#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496; &#9474;
 &#9474;                                                               &#9474;
@@ -515,14 +516,38 @@ open http://localhost:12121</pre>
   <!-- OTEL TRACING & EVALS -->
   <h2 id="tracing">OTel Tracing &amp; Evals</h2>
   <p>
-    Every agent call generates OTel traces that flow to agentevals. One Helm value enables it &mdash; the
-    same OTLP protocol used for microservices.
+    Every agent call generates OTel traces that flow to agentevals. Tracing is enabled via Helm values
+    at install time &mdash; the same OTLP protocol used for microservices.
   </p>
 
-  <pre><span class="comment"># Set during kagent Helm install</span>
+  <h4>Trace pipeline</h4>
+  <p>
+    An <strong>OpenTelemetry Collector</strong> sits between kagent and agentevals as a protocol bridge.
+    The kagent agent pods export traces via gRPC, the collector receives them and forwards to agentevals
+    over HTTP.
+  </p>
+
+  <div class="flow">
+    <div class="flow-step">Agent Pod<br><small style="color:var(--text-muted);">gRPC :4317</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color:var(--accent-orange);">OTel Collector<br><small style="color:var(--text-muted);">gRPC &rarr; HTTP</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color:var(--accent-green);">agentevals<br><small style="color:var(--text-muted);">HTTP :4318</small></div>
+  </div>
+
+  <pre><span class="comment"># kagent Helm values &mdash; point agents at the OTel Collector</span>
 <span class="field">otel.tracing.enabled</span>=<span class="string">true</span>
-<span class="field">otel.tracing.exporter.otlp.endpoint</span>=<span class="string">http://agentevals.default.svc.cluster.local:4318/v1/traces</span>
-<span class="field">otel.tracing.exporter.otlp.protocol</span>=<span class="string">http/protobuf</span></pre>
+<span class="field">otel.tracing.exporter.otlp.endpoint</span>=<span class="string">otel-collector.default.svc.cluster.local:4317</span>
+<span class="field">otel.tracing.exporter.otlp.protocol</span>=<span class="string">grpc</span></pre>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">&#8505;</div>
+    <div>
+      <strong>Why the collector?</strong> kagent v0.8.5 agent pods always export traces via gRPC,
+      regardless of the <code>OTEL_EXPORTER_OTLP_TRACES_PROTOCOL</code> env var. agentevals only
+      accepts HTTP/protobuf on port 4318. The OTel Collector bridges the two protocols.
+    </div>
+  </div>
 
   <h4>What gets traced</h4>
   <ul>
@@ -606,7 +631,7 @@ open http://localhost:12121</pre>
     <thead><tr><th>Script</th><th>What it does</th></tr></thead>
     <tbody>
       <tr><td><code>01-setup-kind.sh</code></td><td>Creates a kind cluster with NodePort mappings for agentregistry</td></tr>
-      <tr><td><code>02-install-stack.sh</code></td><td>Installs agentevals, agentgateway, kagent, and agentregistry via Helm. Patches ModelConfig to route LLM traffic through the gateway.</td></tr>
+      <tr><td><code>02-install-stack.sh</code></td><td>Installs agentevals, agentgateway, kagent, agentregistry, and an OTel Collector via Helm. Patches ModelConfig to route LLM traffic through the gateway. Configures trace pipeline: agents &rarr; OTel Collector (gRPC) &rarr; agentevals (HTTP).</td></tr>
       <tr><td><code>03-deploy-agents.sh</code></td><td>Deploys the two specialist agents (deploy + healthcheck) with their MCP tool configs</td></tr>
       <tr><td><code>04-register-agents.sh</code></td><td>Registers skills, agents, and servers in the agentregistry catalog via REST API</td></tr>
       <tr><td><code>05-compose-agent.sh</code></td><td>Team B discovers skills from the catalog and deploys the incident-response-agent</td></tr>
@@ -639,7 +664,7 @@ open http://localhost:12121</pre>
 
 <span class="field">scripts/</span>
   01-setup-kind.sh            <span class="comment"># Create kind cluster</span>
-  02-install-stack.sh         <span class="comment"># Install full stack + patch ModelConfig</span>
+  02-install-stack.sh         <span class="comment"># Install full stack + OTel Collector + patch ModelConfig</span>
   03-deploy-agents.sh         <span class="comment"># Deploy specialist agents</span>
   04-register-agents.sh       <span class="comment"># Register in catalog</span>
   05-compose-agent.sh         <span class="comment"># Compose incident agent</span>
@@ -680,7 +705,7 @@ open http://localhost:12121</pre>
     <thead><tr><th>Issue</th><th>Fix</th></tr></thead>
     <tbody>
       <tr><td>curl to :8083 fails</td><td><code>source ./scripts/ensure-portforward.sh</code></td></tr>
-      <tr><td>No traces in agentevals</td><td>Check: <code>kubectl logs -l app.kubernetes.io/name=agentevals</code></td></tr>
+      <tr><td>No traces in agentevals</td><td>Check OTel Collector: <code>kubectl logs -l app=otel-collector -n default</code>, then agentevals: <code>kubectl logs -l app.kubernetes.io/name=agentevals</code></td></tr>
       <tr><td>agentregistry :12121 down</td><td>Check: <code>kubectl get pods -n agentregistry</code></td></tr>
       <tr><td>agentgateway proxy not ready</td><td>Check: <code>kubectl get gateway,deploy -n agentgateway-system</code></td></tr>
       <tr><td>LLM calls failing</td><td>Check: <code>kubectl logs -l app.kubernetes.io/name=agentgateway -n agentgateway-system</code></td></tr>
