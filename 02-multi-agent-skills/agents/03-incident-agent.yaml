@@ -9,6 +9,12 @@ spec:
     Incident response coordinator. Orchestrates the deploy agent and
     healthcheck agent to triage issues, perform root cause analysis,
     and coordinate remediation.
+  skills:
+    gitRefs:
+      - url: https://github.com/solo-io/webinar-demos
+        ref: main
+        path: 02-multi-agent-skills/skills/incident-response
+        name: incident-response
   declarative:
     modelConfig: default-model-config
     systemMessage: |

@@ -8,6 +8,12 @@ spec:
   description: >
     Kubernetes health check and diagnostics specialist. Inspects workload
     health, identifies root causes, and produces structured health reports.
+  skills:
+    gitRefs:
+      - url: https://github.com/solo-io/webinar-demos
+        ref: main
+        path: 02-multi-agent-skills/skills/k8s-healthcheck
+        name: k8s-healthcheck
   declarative:
     modelConfig: default-model-config
     systemMessage: |

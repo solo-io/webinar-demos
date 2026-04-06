@@ -8,6 +8,12 @@ spec:
   description: >
     Kubernetes deployment specialist. Validates manifests with dry-run,
     applies changes, monitors rollouts, and handles rollback on failure.
+  skills:
+    gitRefs:
+      - url: https://github.com/solo-io/webinar-demos
+        ref: main
+        path: 02-multi-agent-skills/skills/k8s-deploy
+        name: k8s-deploy
   declarative:
     # default-model-config is auto-created by the kagent Helm chart
     # using providers.openAI.model (gpt-5.4-mini-2026-03-17)
