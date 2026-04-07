@@ -301,6 +301,44 @@
     font-weight: 600;
   }
 
+  /* Card links row */
+  .card-links {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .card-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.15s;
+  }
+
+  .card-links a.btn-code {
+    background: rgba(128,35,195,0.08);
+    color: #8023C3;
+  }
+
+  .card-links a.btn-code:hover {
+    background: rgba(128,35,195,0.15);
+    transform: translateY(-1px);
+  }
+
+  .card-links a.btn-presentation {
+    background: rgba(32,183,243,0.08);
+    color: #1a8fc2;
+  }
+
+  .card-links a.btn-presentation:hover {
+    background: rgba(32,183,243,0.15);
+    transform: translateY(-1px);
+  }
+
   /* Responsive */
   @media (max-width: 640px) {
     .hero h1 { font-size: 36px; letter-spacing: -1px; }
@@ -339,14 +377,18 @@
             <p>AI Team Lead agent that diagnoses Kubernetes issues and creates GitHub issues and PRs using kagent.</p>
           </div>
         </a>
-        <a href="https://github.com/solo-io/webinar-demos/tree/main/02-multi-agent-skills" class="demo-card">
+        <div class="demo-card">
           <div class="card accent-top accent-cyan">
             <div class="icon-badge cyan">&#x2699;&#xFE0F;</div>
             <span class="tag tag-purple">Demo 02</span>
             <h3>Multi-Agent Skills</h3>
             <p>Multi-agent system with reusable skills, evals, and an Agent Gateway for routing agentic traffic.</p>
+            <div class="card-links">
+              <a href="https://github.com/solo-io/webinar-demos/tree/main/02-multi-agent-skills" class="btn-code">&#128187; Code</a>
+              <a href="https://solo-io.github.io/webinar-demos/02-multi-agent-skills/webinar-multi-agent-skills.html" class="btn-presentation">&#127916; Presentation</a>
+            </div>
           </div>
-        </a>
+        </div>
       </div>
     </section>
 
