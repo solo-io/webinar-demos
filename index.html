@@ -1,242 +1,405 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webinar Demos</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Webinar Demos | Solo.io</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0f;
-            color: #e0e0e6;
-            line-height: 1.6;
-        }
+  :root {
+    --bg: #FFFFFF;
+    --bg-soft: #EDEEF7;
+    --bg-card: #FFFFFF;
+    --bg-code: #EDEEF7;
+    --accent-purple: #8023C3;
+    --accent-purple-light: #CC85FF;
+    --accent-blue: #20B7F3;
+    --accent-cyan: #20B7F3;
+    --accent-green: #1FEEB3;
+    --accent-orange: #FF804E;
+    --text-primary: #151927;
+    --text-secondary: #5C6178;
+    --text-muted: #9DA1BD;
+    --border: #DDDFED;
+    --border-light: #EDEEF7;
+    --shadow-sm: 0 1px 3px rgba(21,25,39,0.06), 0 1px 2px rgba(21,25,39,0.04);
+    --shadow-md: 0 4px 12px rgba(21,25,39,0.08), 0 2px 4px rgba(21,25,39,0.04);
+    --shadow-lg: 0 10px 30px rgba(21,25,39,0.1), 0 4px 8px rgba(21,25,39,0.06);
+  }
 
-        a { color: #7c8aff; text-decoration: none; transition: color 0.2s; }
-        a:hover { color: #a5afff; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .hero {
-            text-align: center;
-            padding: 80px 24px 60px;
-            background: linear-gradient(180deg, #12121a 0%, #0a0a0f 100%);
-            border-bottom: 1px solid #1e1e2e;
-        }
+  body {
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
 
-        .hero h1 {
-            font-size: 3rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, #7c8aff, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+  a { color: var(--accent-purple); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: var(--accent-purple-light); }
 
-        .hero p {
-            font-size: 1.2rem;
-            color: #9898a6;
-            max-width: 640px;
-            margin: 0 auto;
-        }
+  /* Decorative background */
+  .bg-dots {
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, #DDDFED 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
 
-        .container {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
+  .corner-accent {
+    position: fixed;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.10;
+    pointer-events: none;
+    z-index: 0;
+  }
 
-        section { padding: 60px 0; }
+  .corner-accent.tr { top: -150px; right: -150px; background: #8023C3; }
+  .corner-accent.bl { bottom: -150px; left: -150px; background: #20B7F3; }
 
-        section h2 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 32px;
-            color: #c8c8d4;
-        }
+  /* Layout */
+  .page { position: relative; z-index: 1; }
 
-        /* Demo cards */
-        .demos {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-        }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
 
-        .demo-card {
-            background: #14141e;
-            border: 1px solid #1e1e2e;
-            border-radius: 12px;
-            padding: 28px;
-            transition: border-color 0.2s, transform 0.2s;
-        }
+  /* Hero */
+  .hero {
+    text-align: center;
+    padding: 80px 24px 60px;
+  }
 
-        .demo-card:hover {
-            border-color: #7c8aff;
-            transform: translateY(-2px);
-        }
+  .solo-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 24px;
+  }
 
-        .demo-card .number {
-            display: inline-block;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #7c8aff;
-            background: rgba(124, 138, 255, 0.1);
-            border-radius: 6px;
-            padding: 4px 10px;
-            margin-bottom: 12px;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
+  .slide-label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-purple);
+    margin-bottom: 16px;
+  }
 
-        .demo-card h3 {
-            font-size: 1.15rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #e0e0e6;
-        }
+  .hero h1 {
+    font-family: 'Figtree', sans-serif;
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    margin-bottom: 20px;
+  }
 
-        .demo-card p {
-            font-size: 0.95rem;
-            color: #8888a0;
-        }
+  .gradient-text {
+    background: linear-gradient(135deg, #8023C3, #20B7F3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 
-        /* Project links */
-        .projects {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-        }
+  .subtitle {
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
 
-        .project-card {
-            display: block;
-            background: #14141e;
-            border: 1px solid #1e1e2e;
-            border-radius: 12px;
-            padding: 24px;
-            text-align: center;
-            transition: border-color 0.2s, transform 0.2s;
-        }
+  /* Sections */
+  section {
+    padding: 48px 0;
+  }
 
-        .project-card:hover {
-            border-color: #7c8aff;
-            transform: translateY(-2px);
-        }
+  section h2 {
+    font-family: 'Figtree', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 28px;
+    color: var(--text-primary);
+  }
 
-        .project-card .domain {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #e0e0e6;
-            margin-bottom: 6px;
-        }
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
 
-        .project-card .desc {
-            font-size: 0.85rem;
-            color: #8888a0;
-        }
+  .card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
 
-        /* Getting started */
-        .getting-started {
-            background: #14141e;
-            border: 1px solid #1e1e2e;
-            border-radius: 12px;
-            padding: 32px;
-        }
+  .card.accent-top::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 24px; right: 24px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+  }
 
-        .getting-started p {
-            color: #9898a6;
-            margin-bottom: 16px;
-        }
+  .card.accent-purple::before { background: var(--accent-purple); }
+  .card.accent-cyan::before { background: var(--accent-cyan); }
+  .card.accent-green::before { background: var(--accent-green); }
+  .card.accent-orange::before { background: var(--accent-orange); }
 
-        .getting-started code {
-            display: inline-block;
-            background: #1a1a28;
-            color: #a78bfa;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-        }
+  /* Icon Badges */
+  .icon-badge {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
 
-        .getting-started pre {
-            background: #1a1a28;
-            border-radius: 8px;
-            padding: 16px 20px;
-            overflow-x: auto;
-            font-size: 0.9rem;
-            color: #c8c8d4;
-        }
+  .icon-badge.purple { background: rgba(128,35,195,0.1); }
+  .icon-badge.cyan { background: rgba(32,183,243,0.1); }
+  .icon-badge.green { background: rgba(31,238,179,0.12); }
+  .icon-badge.orange { background: rgba(255,128,78,0.1); }
 
-        footer {
-            text-align: center;
-            padding: 40px 24px;
-            border-top: 1px solid #1e1e2e;
-            color: #5a5a6e;
-            font-size: 0.85rem;
-        }
-    </style>
+  /* Tags */
+  .tag {
+    display: inline-block;
+    padding: 5px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  .tag-purple { background: rgba(128,35,195,0.08); color: #8023C3; }
+
+  /* Demo grid */
+  .demos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+  }
+
+  .demo-card {
+    display: block;
+    color: inherit;
+  }
+
+  .demo-card .card h3 {
+    font-family: 'Figtree', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+  }
+
+  .demo-card .card p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* Project grid */
+  .projects {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+
+  .project-link {
+    display: block;
+    color: inherit;
+  }
+
+  .project-link .card {
+    text-align: center;
+    padding: 28px 20px;
+  }
+
+  .project-link .domain {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent-purple);
+    margin-bottom: 8px;
+  }
+
+  .project-link .desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* Code block */
+  .code-block {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text-primary);
+    position: relative;
+  }
+
+  .code-block .lang-tag {
+    position: absolute;
+    top: 10px; right: 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .code-comment { color: var(--text-muted); font-style: italic; }
+  .code-string { color: #0d9b6e; }
+
+  /* Getting started */
+  .getting-started-content p {
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin-bottom: 20px;
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 48px 24px;
+    border-top: 1px solid var(--border-light);
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  footer a {
+    font-weight: 600;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 36px; letter-spacing: -1px; }
+    .subtitle { font-size: 16px; }
+    section h2 { font-size: 24px; }
+    .hero { padding: 60px 20px 40px; }
+    .projects { grid-template-columns: 1fr 1fr; }
+  }
+</style>
 </head>
 <body>
 
-    <div class="hero">
-        <h1>Webinar Demos</h1>
-        <p>Shareable demo code and configurations from webinars covering AI agents, Kubernetes-native agent orchestration, and API gateway patterns for agentic workloads.</p>
-    </div>
+<div class="bg-dots"></div>
+<div class="corner-accent tr"></div>
+<div class="corner-accent bl"></div>
 
-    <div class="container">
+<div class="page">
 
-        <section>
-            <h2>Demos</h2>
-            <div class="demos">
-                <a href="https://github.com/solo-io/webinar-demos/tree/main/01-team-lead-agents" class="demo-card">
-                    <span class="number">Demo 01</span>
-                    <h3>Team Lead Agents</h3>
-                    <p>AI Team Lead agent that diagnoses Kubernetes issues and creates GitHub issues and PRs using kagent.</p>
-                </a>
-                <a href="https://github.com/solo-io/webinar-demos/tree/main/02-multi-agent-skills" class="demo-card">
-                    <span class="number">Demo 02</span>
-                    <h3>Multi-Agent Skills</h3>
-                    <p>Multi-agent system with reusable skills, evals, and an Agent Gateway.</p>
-                </a>
-            </div>
-        </section>
+  <div class="hero">
+    <div class="solo-brand">Solo.io</div>
+    <div class="slide-label">Open Source</div>
+    <h1><span class="gradient-text">Webinar Demos</span></h1>
+    <p class="subtitle">Shareable demo code and configurations from webinars covering AI agents, Kubernetes-native agent orchestration, and API gateway patterns for agentic workloads.</p>
+  </div>
 
-        <section>
-            <h2>Key Projects</h2>
-            <div class="projects">
-                <a href="https://kagent.dev" class="project-card" target="_blank" rel="noopener">
-                    <div class="domain">kagent.dev</div>
-                    <div class="desc">Kubernetes-native framework for building, deploying, and operating AI agents</div>
-                </a>
-                <a href="https://agentgateway.dev" class="project-card" target="_blank" rel="noopener">
-                    <div class="domain">agentgateway.dev</div>
-                    <div class="desc">Gateway for managing and routing agentic API traffic (MCP, A2A)</div>
-                </a>
-                <a href="https://aregistery.ai" class="project-card" target="_blank" rel="noopener">
-                    <div class="domain">aregistery.ai</div>
-                    <div class="desc">Registry for discovering and sharing agent skills and tools</div>
-                </a>
-                <a href="https://aevals.ai" class="project-card" target="_blank" rel="noopener">
-                    <div class="domain">aevals.ai</div>
-                    <div class="desc">Evaluation framework for testing and benchmarking AI agents</div>
-                </a>
-            </div>
-        </section>
+  <div class="container">
 
-        <section>
-            <h2>Getting Started</h2>
-            <div class="getting-started">
-                <p>Each demo folder is self-contained with its own README, setup scripts, and agent configurations. Clone the repo and navigate to a demo to get started:</p>
-                <pre>git clone https://github.com/solo-io/webinar-demos.git
+    <section>
+      <h2>Demos</h2>
+      <div class="demos">
+        <a href="https://github.com/solo-io/webinar-demos/tree/main/01-team-lead-agents" class="demo-card">
+          <div class="card accent-top accent-purple">
+            <div class="icon-badge purple">&#x1F916;</div>
+            <span class="tag tag-purple">Demo 01</span>
+            <h3>Team Lead Agents</h3>
+            <p>AI Team Lead agent that diagnoses Kubernetes issues and creates GitHub issues and PRs using kagent.</p>
+          </div>
+        </a>
+        <a href="https://github.com/solo-io/webinar-demos/tree/main/02-multi-agent-skills" class="demo-card">
+          <div class="card accent-top accent-cyan">
+            <div class="icon-badge cyan">&#x2699;&#xFE0F;</div>
+            <span class="tag tag-purple">Demo 02</span>
+            <h3>Multi-Agent Skills</h3>
+            <p>Multi-agent system with reusable skills, evals, and an Agent Gateway for routing agentic traffic.</p>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Key Projects</h2>
+      <div class="projects">
+        <a href="https://kagent.dev" class="project-link" target="_blank" rel="noopener">
+          <div class="card accent-top accent-purple">
+            <div class="domain">kagent.dev</div>
+            <div class="desc">Kubernetes-native framework for building, deploying, and operating AI agents</div>
+          </div>
+        </a>
+        <a href="https://agentgateway.dev" class="project-link" target="_blank" rel="noopener">
+          <div class="card accent-top accent-cyan">
+            <div class="domain">agentgateway.dev</div>
+            <div class="desc">Gateway for managing and routing agentic API traffic (MCP, A2A)</div>
+          </div>
+        </a>
+        <a href="https://aregistery.ai" class="project-link" target="_blank" rel="noopener">
+          <div class="card accent-top accent-green">
+            <div class="domain">aregistery.ai</div>
+            <div class="desc">Registry for discovering and sharing agent skills and tools</div>
+          </div>
+        </a>
+        <a href="https://aevals.ai" class="project-link" target="_blank" rel="noopener">
+          <div class="card accent-top accent-orange">
+            <div class="domain">aevals.ai</div>
+            <div class="desc">Evaluation framework for testing and benchmarking AI agents</div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Getting Started</h2>
+      <div class="getting-started-content">
+        <p>Each demo folder is self-contained with its own README, setup scripts, and agent configurations. Clone the repo and navigate to a demo to get started.</p>
+        <div class="code-block"><span class="lang-tag">BASH</span><span class="code-comment"># Clone the repo</span>
+git clone https://github.com/solo-io/webinar-demos.git
+
+<span class="code-comment"># Pick a demo</span>
 cd webinar-demos/01-team-lead-agents
-cat README.md</pre>
-            </div>
-        </section>
+cat README.md</div>
+      </div>
+    </section>
 
-    </div>
+  </div>
 
-    <footer>
-        <p>Built by <a href="https://solo.io" target="_blank" rel="noopener">Solo.io</a></p>
-    </footer>
+  <footer>
+    Built by <a href="https://solo.io" target="_blank" rel="noopener">Solo.io</a>
+  </footer>
+
+</div>
 
 </body>
 </html>
