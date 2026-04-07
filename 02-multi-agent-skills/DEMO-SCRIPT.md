@@ -285,10 +285,52 @@ Team B's agent doesn't know kubectl. Its tools *are Team A's agents*. `type: Age
 
 It's an incident commander. It delegates to specialists it found in the catalog."
 
-#### Deploy the incident agent
+#### Register the incident agent in the catalog first
 
 ```bash
-./scripts/05-compose-agent.sh
+./scripts/05-compose-agent.sh register
+```
+
+*(Or if you prefer to show it manually)*
+
+```bash
+# Register the incident-response skill
+curl -s -X POST http://localhost:12121/v0/skills \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "incident-response",
+    "description": "Multi-agent incident coordination — triage, investigate, remediate",
+    "version": "0.1.0",
+    "repo_url": "https://github.com/solo-io/webinar-demos",
+    "path": "02-multi-agent-skills/skills/incident-response"
+  }'
+
+# Register the incident-response agent
+curl -s -X POST http://localhost:12121/v0/agents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "incident-response-agent",
+    "description": "Coordinates healthcheck and deploy agents for end-to-end incident response",
+    "framework": "kagent",
+    "model": "gpt-4o",
+    "repo_url": "https://github.com/solo-io/webinar-demos",
+    "path": "02-multi-agent-skills/agents/03-incident-agent.yaml"
+  }'
+```
+
+"Before we deploy anything, we register it. Same flow Team A used. The incident-response skill and agent go into the catalog — now *every* team can discover it. The registry is the single source of truth. If it's not in the catalog, it doesn't exist."
+
+**[OPEN BROWSER: http://localhost:12121]**
+
+- Refresh the registry
+- Show the incident-response skill and agent now listed alongside Team A's work
+
+"Look — Team B's work is right there next to Team A's. Three skills. Three agents. Two teams. One catalog."
+
+#### Now deploy it to kagent
+
+```bash
+./scripts/05-compose-agent.sh deploy
 ```
 
 *(Or if you prefer to show it manually)*
@@ -297,9 +339,11 @@ It's an incident commander. It delegates to specialists it found in the catalog.
 kubectl apply -f agents/03-incident-agent.yaml
 ```
 
-"One YAML file. The tools are Team A's agents. The skill is pulled from git — same repo Team A published to. Team B just built multi-agent incident response without writing a single kubectl command. They composed it from skills that already existed.
+"*Now* we deploy. Registry first, then runtime. The agent pulls its skill from the same git repo it was registered with. Same URL. Same version. The catalog told us what exists — kagent makes it run.
 
-**That's the power of shared skills.** Maria left the company two months ago — but her healthcheck expertise is pulled from git and running inside Team B's agent right now. Versioned. Tagged. Auditable."
+**That's the workflow.** Register → Discover → Deploy. Team B just built multi-agent incident response without writing a single kubectl command. They composed it from skills that already existed, registered it back so the *next* team can find it, and deployed it with `kubectl apply`.
+
+**That's the power of shared skills.** Maria left the company two months ago — but her healthcheck expertise is pulled from git and running inside Team B's agent right now. Versioned. Tagged. Auditable. And now Team B's incident-response pattern is in the catalog too — for Team C."
 
 #### Run the incident scenario
 
@@ -452,7 +496,7 @@ Thank you."
 02-install-stack.sh       # Install kagent, agentgateway, agentregistry, agentevals
 03-deploy-agents.sh       # Team A: deploy specialist agents (healthcheck + deploy)
 04-register-agents.sh     # Team A: register skills, agents, servers in catalog
-05-compose-agent.sh       # Team B: discover skills, deploy incident agent
+05-compose-agent.sh       # Team B: register in catalog, then deploy incident agent
 06-run-and-eval.sh        # Both: run agents, view traces, evaluate
 ensure-portforward.sh     # Restart dead port-forwards
 ```
