@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webinar Demos</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e6;
+            line-height: 1.6;
+        }
+
+        a { color: #7c8aff; text-decoration: none; transition: color 0.2s; }
+        a:hover { color: #a5afff; }
+
+        .hero {
+            text-align: center;
+            padding: 80px 24px 60px;
+            background: linear-gradient(180deg, #12121a 0%, #0a0a0f 100%);
+            border-bottom: 1px solid #1e1e2e;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #7c8aff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: #9898a6;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        section { padding: 60px 0; }
+
+        section h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 32px;
+            color: #c8c8d4;
+        }
+
+        /* Demo cards */
+        .demos {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .demo-card {
+            background: #14141e;
+            border: 1px solid #1e1e2e;
+            border-radius: 12px;
+            padding: 28px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .demo-card:hover {
+            border-color: #7c8aff;
+            transform: translateY(-2px);
+        }
+
+        .demo-card .number {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #7c8aff;
+            background: rgba(124, 138, 255, 0.1);
+            border-radius: 6px;
+            padding: 4px 10px;
+            margin-bottom: 12px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .demo-card h3 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #e0e0e6;
+        }
+
+        .demo-card p {
+            font-size: 0.95rem;
+            color: #8888a0;
+        }
+
+        /* Project links */
+        .projects {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .project-card {
+            display: block;
+            background: #14141e;
+            border: 1px solid #1e1e2e;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .project-card:hover {
+            border-color: #7c8aff;
+            transform: translateY(-2px);
+        }
+
+        .project-card .domain {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e0e0e6;
+            margin-bottom: 6px;
+        }
+
+        .project-card .desc {
+            font-size: 0.85rem;
+            color: #8888a0;
+        }
+
+        /* Getting started */
+        .getting-started {
+            background: #14141e;
+            border: 1px solid #1e1e2e;
+            border-radius: 12px;
+            padding: 32px;
+        }
+
+        .getting-started p {
+            color: #9898a6;
+            margin-bottom: 16px;
+        }
+
+        .getting-started code {
+            display: inline-block;
+            background: #1a1a28;
+            color: #a78bfa;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .getting-started pre {
+            background: #1a1a28;
+            border-radius: 8px;
+            padding: 16px 20px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            color: #c8c8d4;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 24px;
+            border-top: 1px solid #1e1e2e;
+            color: #5a5a6e;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="hero">
+        <h1>Webinar Demos</h1>
+        <p>Shareable demo code and configurations from webinars covering AI agents, Kubernetes-native agent orchestration, and API gateway patterns for agentic workloads.</p>
+    </div>
+
+    <div class="container">
+
+        <section>
+            <h2>Demos</h2>
+            <div class="demos">
+                <a href="https://github.com/solo-io/webinar-demos/tree/main/01-team-lead-agents" class="demo-card">
+                    <span class="number">Demo 01</span>
+                    <h3>Team Lead Agents</h3>
+                    <p>AI Team Lead agent that diagnoses Kubernetes issues and creates GitHub issues and PRs using kagent.</p>
+                </a>
+                <a href="https://github.com/solo-io/webinar-demos/tree/main/02-multi-agent-skills" class="demo-card">
+                    <span class="number">Demo 02</span>
+                    <h3>Multi-Agent Skills</h3>
+                    <p>Multi-agent system with reusable skills, evals, and an Agent Gateway.</p>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Key Projects</h2>
+            <div class="projects">
+                <a href="https://kagent.dev" class="project-card" target="_blank" rel="noopener">
+                    <div class="domain">kagent.dev</div>
+                    <div class="desc">Kubernetes-native framework for building, deploying, and operating AI agents</div>
+                </a>
+                <a href="https://agentgateway.dev" class="project-card" target="_blank" rel="noopener">
+                    <div class="domain">agentgateway.dev</div>
+                    <div class="desc">Gateway for managing and routing agentic API traffic (MCP, A2A)</div>
+                </a>
+                <a href="https://aregistery.ai" class="project-card" target="_blank" rel="noopener">
+                    <div class="domain">aregistery.ai</div>
+                    <div class="desc">Registry for discovering and sharing agent skills and tools</div>
+                </a>
+                <a href="https://aevals.ai" class="project-card" target="_blank" rel="noopener">
+                    <div class="domain">aevals.ai</div>
+                    <div class="desc">Evaluation framework for testing and benchmarking AI agents</div>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Getting Started</h2>
+            <div class="getting-started">
+                <p>Each demo folder is self-contained with its own README, setup scripts, and agent configurations. Clone the repo and navigate to a demo to get started:</p>
+                <pre>git clone https://github.com/solo-io/webinar-demos.git
+cd webinar-demos/01-team-lead-agents
+cat README.md</pre>
+            </div>
+        </section>
+
+    </div>
+
+    <footer>
+        <p>Built by <a href="https://solo.io" target="_blank" rel="noopener">Solo.io</a></p>
+    </footer>
+
+</body>
+</html>
