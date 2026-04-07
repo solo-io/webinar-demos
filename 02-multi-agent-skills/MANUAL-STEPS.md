@@ -71,7 +71,40 @@ kubectl get pods -l app.kubernetes.io/name=agentevals
 
 ---
 
-## Step 3: Install agentgateway
+## Step 3: Install OTel Collector (gRPC → HTTP bridge)
+
+kagent exports traces over gRPC (port 4317), but agentevals accepts OTLP over HTTP (port 4318). The OTel Collector bridges the two protocols.
+
+```bash
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
+helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
+  --namespace kagent --create-namespace \
+  --set mode=deployment \
+  --set replicaCount=1 \
+  --set image.repository=otel/opentelemetry-collector \
+  --set ports.otlp.enabled=true \
+  --set ports.otlp-http.enabled=false \
+  --set config.exporters.otlphttp.endpoint="http://agentevals.default.svc.cluster.local:4318" \
+  --set config.exporters.otlphttp.compression="none" \
+  --set 'config.service.pipelines.traces.receivers[0]=otlp' \
+  --set 'config.service.pipelines.traces.exporters[0]=otlphttp' \
+  --set 'config.service.pipelines.logs.receivers[0]=otlp' \
+  --set 'config.service.pipelines.logs.exporters[0]=otlphttp' \
+  --wait --timeout 180s
+```
+
+> **Note:** The collector is deployed in the `kagent` namespace so kagent can reach it at `http://otel-collector-opentelemetry-collector.kagent.svc.cluster.local:4317`.
+
+Verify:
+```bash
+kubectl get pods -n kagent -l app.kubernetes.io/name=opentelemetry-collector
+```
+
+---
+
+## Step 4: Install agentgateway
 
 agentgateway is an AI-native proxy that governs LLM, MCP, and A2A traffic. All LLM calls from kagent will flow through it.
 
@@ -193,7 +226,7 @@ You should see the agentgateway controller and a gateway proxy deployment.
 
 ---
 
-## Step 4: Install kagent
+## Step 5: Install kagent
 
 kagent is the Kubernetes-native AI agent framework. It auto-creates a `default-model-config` (ModelConfig), `kagent-openai` (Secret), and `kagent-tool-server` (RemoteMCPServer).
 
@@ -202,16 +235,15 @@ kagent is the Kubernetes-native AI agent framework. It auto-creates a `default-m
 helm install kagent-crds oci://ghcr.io/kagent-dev/kagent/helm/kagent-crds \
   --namespace kagent --create-namespace
 
-# Install kagent with OTel tracing pointed at agentevals
+# Install kagent with OTel tracing pointed at the OTel Collector
 helm upgrade --install kagent oci://ghcr.io/kagent-dev/kagent/helm/kagent \
   --namespace kagent \
   --set providers.default=openAI \
   --set providers.openAI.apiKey="${OPENAI_API_KEY}" \
   --set providers.openAI.model=gpt-5.4-mini-2026-03-17 \
   --set otel.tracing.enabled=true \
-  --set otel.tracing.exporter.otlp.endpoint="http://agentevals.default.svc.cluster.local:4318/v1/traces" \
+  --set otel.tracing.exporter.otlp.endpoint="http://otel-collector-opentelemetry-collector.kagent.svc.cluster.local:4317" \
   --set otel.tracing.exporter.otlp.insecure=true \
-  --set otel.tracing.exporter.otlp.protocol="http/protobuf" \
   --set agents.istio-agent.enabled=false \
   --set agents.kgateway-agent.enabled=false \
   --set agents.promql-agent.enabled=false \
@@ -255,7 +287,7 @@ kubectl get modelconfig default-model-config -n kagent -o yaml | grep baseUrl
 
 ---
 
-## Step 5: Install agentregistry
+## Step 6: Install agentregistry
 
 agentregistry provides a skill catalog with a REST API and web UI. The bundled PostgreSQL needs the pgvector image (the migration SQL creates the `vector` extension).
 
@@ -285,7 +317,7 @@ kubectl get pods -n agentregistry
 
 ---
 
-## Step 6: Set Up Port-Forwards
+## Step 7: Set Up Port-Forwards
 
 ```bash
 # Kill any existing port-forwards
@@ -332,7 +364,7 @@ source ./scripts/ensure-portforward.sh
 
 ---
 
-## Step 7: Team A — Deploy Specialist Agents
+## Step 8: Team A — Deploy Specialist Agents
 
 Team A (SRE) builds and deploys the specialist agents — the building blocks.
 
@@ -371,7 +403,7 @@ You should see 2 agents:
 
 ---
 
-## Step 8: Team A — Test the Specialists
+## Step 9: Team A — Test the Specialists
 
 ### Via the kagent UI
 
@@ -400,7 +432,7 @@ curl -s -L -X POST http://localhost:8083/api/a2a/kagent/k8s-healthcheck-agent \
 
 ---
 
-## Step 9: Team A — Register in agentregistry
+## Step 10: Team A — Register in agentregistry
 
 No CLI needed — just curl to the REST API:
 
@@ -526,7 +558,7 @@ Browse the catalog at http://localhost:12121 — you should see Team A's 2 skill
 
 ---
 
-## Step 10: Team B — Discover & Compose the Incident Agent
+## Step 11: Team B — Discover & Compose the Incident Agent
 
 Team B (Platform Engineering) searches the catalog, finds Team A's work, and composes a higher-level agent.
 
@@ -608,7 +640,7 @@ Now the registry has all 3 skills and 3 agents. Browse http://localhost:12121 to
 
 ---
 
-## Step 11: Run Agents & View Traces
+## Step 12: Run Agents & View Traces
 
 ### Deploy a test workload
 
@@ -699,8 +731,8 @@ rm -rf /tmp/agentevals
 
 | Issue | Fix |
 |-------|-----|
-| curl to :8083 fails | Re-run port-forwards (Step 6) or `source ./scripts/ensure-portforward.sh` |
-| No traces in agentevals | Check kagent OTel config: `kubectl get pods -n kagent` and logs |
+| curl to :8083 fails | Re-run port-forwards (Step 7) or `source ./scripts/ensure-portforward.sh` |
+| No traces in agentevals | Check OTel Collector: `kubectl logs -n kagent -l app.kubernetes.io/name=opentelemetry-collector` and kagent pods |
 | agentregistry :12121 down | `kubectl get pods -n agentregistry` — check for CrashLoopBackOff |
 | agentregistry CrashLoopBackOff | Likely pgvector issue — ensure you used the pgvector image flags |
 | agentgateway proxy not ready | `kubectl get gateway,deploy -n agentgateway-system` |

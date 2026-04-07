@@ -30,7 +30,7 @@ Plus an OpenAI API key: `export OPENAI_API_KEY='sk-...'`
 │  │    ├── calls → k8s-deploy-agent (6 MCP tools)          │ │
 │  │    └── calls → k8s-healthcheck-agent (5 MCP tools)     │ │
 │  │                                                         │ │
-│  │  Model: gpt-5.4-mini  |  OTel tracing → agentevals     │ │
+│  │  Model: gpt-5.4-mini  |  OTel tracing → collector      │ │
 │  │  LLM traffic → agentgateway → OpenAI                   │ │
 │  └─────────────────────────────────────────────────────────┘ │
 │                                                               │
@@ -41,8 +41,12 @@ Plus an OpenAI API key: `export OPENAI_API_KEY='sk-...'`
 │  │ LLM proxy :80         │  └──────────────────────────────┘ │
 │  │ Gateway API CRDs     │                                    │
 │  └──────────────────────┘  ┌──────────────────────────────┐ │
+│                             │ OTel Collector (ns: kagent)  │ │
+│                             │ gRPC :4317 → HTTP :4318      │ │
+│                             └──────────────────────────────┘ │
+│                             ┌──────────────────────────────┐ │
 │                             │ agentevals (ns: default)     │ │
-│                             │ OTLP receiver :4318          │ │
+│                             │ OTLP HTTP receiver :4318     │ │
 │                             │ Web UI + API :8001           │ │
 │                             └──────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘
@@ -165,7 +169,7 @@ rm -rf .tmp/
 | Issue | Fix |
 |-------|-----|
 | curl to :8083 fails | `source ./scripts/ensure-portforward.sh` |
-| No traces in agentevals | Check: `kubectl logs -l app.kubernetes.io/name=agentevals` |
+| No traces in agentevals | Check OTel Collector: `kubectl logs -n kagent -l app.kubernetes.io/name=opentelemetry-collector` |
 | agentregistry :12121 down | Check: `kubectl get pods -n agentregistry` |
 | agentgateway proxy not ready | Check: `kubectl get gateway,deploy -n agentgateway-system` |
 | Helm OCI pull 403 | `echo $GH_TOKEN \| helm registry login ghcr.io -u x --password-stdin` |

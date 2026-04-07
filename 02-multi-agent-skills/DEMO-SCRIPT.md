@@ -399,10 +399,10 @@ That's what agentevals solves."
 - Click into the incident agent session
 - Expand the span tree
 
-"Every agent call we've made today is already here. We didn't configure any exporters. When we installed kagent, we set one Helm value:
+"Every agent call we've made today is already here. We set up an OTel Collector as a gRPC-to-HTTP bridge and pointed kagent at it:
 
 ```
-otel.tracing.exporter.otlp.endpoint=http://agentevals.default.svc.cluster.local:4318/v1/traces
+kagent (gRPC :4317) → OTel Collector → agentevals (HTTP :4318)
 ```
 
 That's it. OTel traces. Same protocol you use for your microservices.

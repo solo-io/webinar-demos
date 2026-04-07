@@ -60,11 +60,43 @@ helm upgrade --install agentevals \
 echo "==> agentevals installed."
 
 ###########################################################
-# Step 2: Install agentgateway (AI-native proxy for LLM/MCP/A2A)
+# Step 2: Install OTel Collector (gRPC → HTTP bridge)
 ###########################################################
 echo ""
 echo "=========================================="
-echo " Step 2: Install agentgateway"
+echo " Step 2: Install OTel Collector"
+echo "=========================================="
+
+echo "==> Adding OpenTelemetry Helm repo..."
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts 2>/dev/null || true
+helm repo update
+
+echo "==> Installing OTel Collector (gRPC→HTTP bridge for kagent→agentevals)..."
+helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
+  --namespace kagent --create-namespace \
+  --set mode=deployment \
+  --set replicaCount=1 \
+  --set image.repository=otel/opentelemetry-collector \
+  --set ports.otlp.enabled=true \
+  --set ports.otlp-http.enabled=false \
+  --set config.exporters.otlphttp.endpoint="http://agentevals.default.svc.cluster.local:4318" \
+  --set config.exporters.otlphttp.compression="none" \
+  --set 'config.service.pipelines.traces.receivers[0]=otlp' \
+  --set 'config.service.pipelines.traces.exporters[0]=otlphttp' \
+  --set 'config.service.pipelines.logs.receivers[0]=otlp' \
+  --set 'config.service.pipelines.logs.exporters[0]=otlphttp' \
+  --wait --timeout 180s
+
+echo "==> OTel Collector installed."
+echo ""
+echo "  kagent (gRPC :4317) → OTel Collector → agentevals (HTTP :4318)"
+
+###########################################################
+# Step 3: Install agentgateway (AI-native proxy for LLM/MCP/A2A)
+###########################################################
+echo ""
+echo "=========================================="
+echo " Step 3: Install agentgateway"
 echo "=========================================="
 
 echo "==> Installing Gateway API CRDs..."
@@ -117,11 +149,11 @@ echo "  All LLM traffic will flow through agentgateway."
 echo "  Gateway: ai-gateway → OpenAI backend"
 
 ###########################################################
-# Step 3: Install kagent with OTel tracing → agentevals
+# Step 4: Install kagent with OTel tracing → OTel Collector
 ###########################################################
 echo ""
 echo "=========================================="
-echo " Step 3: Install kagent"
+echo " Step 4: Install kagent"
 echo "=========================================="
 
 echo "==> Installing kagent CRDs..."
@@ -136,9 +168,8 @@ helm upgrade --install kagent oci://ghcr.io/kagent-dev/kagent/helm/kagent \
   --set providers.openAI.apiKey="${OPENAI_API_KEY}" \
   --set providers.openAI.model=gpt-5.4-mini-2026-03-17 \
   --set otel.tracing.enabled=true \
-  --set otel.tracing.exporter.otlp.endpoint="http://agentevals.default.svc.cluster.local:4318/v1/traces" \
+  --set otel.tracing.exporter.otlp.endpoint="http://otel-collector-opentelemetry-collector.kagent.svc.cluster.local:4317" \
   --set otel.tracing.exporter.otlp.insecure=true \
-  --set otel.tracing.exporter.otlp.protocol="http/protobuf" \
   --set agents.istio-agent.enabled=false \
   --set agents.kgateway-agent.enabled=false \
   --set agents.promql-agent.enabled=false \
@@ -176,11 +207,11 @@ kubectl get modelconfig -n kagent
 kubectl get remotemcpserver -n kagent
 
 ###########################################################
-# Step 4: Install agentregistry
+# Step 5: Install agentregistry
 ###########################################################
 echo ""
 echo "=========================================="
-echo " Step 4: Install agentregistry"
+echo " Step 5: Install agentregistry"
 echo "=========================================="
 
 echo "==> Installing agentregistry into cluster..."
@@ -206,11 +237,11 @@ helm upgrade --install agentregistry \
 echo "==> agentregistry installed."
 
 ###########################################################
-# Step 5: Set up port-forwarding
+# Step 6: Set up port-forwarding
 ###########################################################
 echo ""
 echo "=========================================="
-echo " Step 5: Set up access"
+echo " Step 6: Set up access"
 echo "=========================================="
 
 pkill -f "port-forward.*agentevals" 2>/dev/null || true
@@ -238,7 +269,7 @@ echo "  agentgateway proxy:  http://localhost:9090"
 echo "  agentregistry UI:    http://localhost:12121  (NodePort)"
 
 ###########################################################
-# Step 6: Verify the stack
+# Step 7: Verify the stack
 ###########################################################
 echo ""
 echo "=========================================="

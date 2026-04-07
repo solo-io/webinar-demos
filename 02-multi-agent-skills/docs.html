@@ -537,8 +537,8 @@ open http://localhost:12121</pre>
 
   <pre><span class="comment"># kagent Helm values &mdash; point agents at the OTel Collector</span>
 <span class="field">otel.tracing.enabled</span>=<span class="string">true</span>
-<span class="field">otel.tracing.exporter.otlp.endpoint</span>=<span class="string">otel-collector.default.svc.cluster.local:4317</span>
-<span class="field">otel.tracing.exporter.otlp.protocol</span>=<span class="string">grpc</span></pre>
+<span class="field">otel.tracing.exporter.otlp.endpoint</span>=<span class="string">http://otel-collector-opentelemetry-collector.kagent.svc.cluster.local:4317</span>
+<span class="field">otel.tracing.exporter.otlp.insecure</span>=<span class="string">true</span></pre>
 
   <div class="callout callout-info">
     <div class="callout-icon">&#8505;</div>
@@ -705,7 +705,7 @@ open http://localhost:12121</pre>
     <thead><tr><th>Issue</th><th>Fix</th></tr></thead>
     <tbody>
       <tr><td>curl to :8083 fails</td><td><code>source ./scripts/ensure-portforward.sh</code></td></tr>
-      <tr><td>No traces in agentevals</td><td>Check OTel Collector: <code>kubectl logs -l app=otel-collector -n default</code>, then agentevals: <code>kubectl logs -l app.kubernetes.io/name=agentevals</code></td></tr>
+      <tr><td>No traces in agentevals</td><td>Check OTel Collector: <code>kubectl logs -n kagent -l app.kubernetes.io/name=opentelemetry-collector</code>, then agentevals: <code>kubectl logs -l app.kubernetes.io/name=agentevals</code></td></tr>
       <tr><td>agentregistry :12121 down</td><td>Check: <code>kubectl get pods -n agentregistry</code></td></tr>
       <tr><td>agentgateway proxy not ready</td><td>Check: <code>kubectl get gateway,deploy -n agentgateway-system</code></td></tr>
       <tr><td>LLM calls failing</td><td>Check: <code>kubectl logs -l app.kubernetes.io/name=agentgateway -n agentgateway-system</code></td></tr>
