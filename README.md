@@ -10,6 +10,15 @@ Each folder contains a self-contained demo with its own README, setup scripts, a
 |------|-------------|
 | [01-team-lead-agents](./01-team-lead-agents/) | AI Team Lead agent that diagnoses Kubernetes issues and creates GitHub issues/PRs using kagent |
 | [02-multi-agent-skills](./02-multi-agent-skills/) | Multi-agent system with reusable skills, evals, and an Agent Gateway |
+| [03-agent-registry](./03-agent-registry/) | Central catalog for AI artifacts with agentregistry — build and publish MCP servers locally, connect them to Claude Code, then run the registry on Kubernetes and deploy agents with kagent |
+
+## YouTube Series
+
+Hands-on AgentGateway episodes with step-by-step deploy/test/cleanup scripts:
+
+| Episode | Description |
+|---------|-------------|
+| [03-virtual-mcp](./youtube-series/03-virtual-mcp/) | Virtual API keys for LLM access control — per-user keys with daily token budgets, API key authentication, and token-based rate limiting through AgentGateway |
 
 ## Key Projects
 
