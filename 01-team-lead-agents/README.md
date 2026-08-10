@@ -42,45 +42,31 @@ kubectl wait --for=condition=ready pod -l app=kagent -n kagent --timeout=300s
 
 ### 3. Configure GitHub
 **Edit `agents/github-issues-agent.yaml`, `agents/github-pr-agent.yaml`, and `agents/teamlead-agent.yaml`:**
-- Replace `sebbycorp/ai-kagent-demo` with your repo: `YOUR_USERNAME/YOUR_REPO`
+- Configure env vars $GITHUB_USERNAME and $GITHUB_REPO
 
 **Deploy GitHub MCP Server:**
 ```bash
 export GITHUB_PERSONAL_ACCESS_TOKEN="your-token-here"
+```
 
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: github-pat
-  namespace: kagent
-type: Opaque
-stringData:
-  GITHUB_PERSONAL_ACCESS_TOKEN: $GITHUB_PERSONAL_ACCESS_TOKEN
----
-apiVersion: kagent.dev/v1alpha2
-kind: RemoteMCPServer
-metadata:
-  name: github-mcp-remote
-  namespace: kagent
-spec:
-  description: GitHub Copilot MCP Server
-  url: https://api.githubcopilot.com/mcp/
-  protocol: STREAMABLE_HTTP
-  headersFrom:
-    - name: Authorization
-      valueFrom:
-        type: Secret
-        name: github-pat
-        key: GITHUB_PERSONAL_ACCESS_TOKEN
-  timeout: 5s
-  terminateOnClose: true
-EOF
+Then:
+```bash
+envsubst < gh-mcp-server.yaml | kubectl apply -f -
 ```
 
 ### 4. Deploy Agents
-```bash
-kubectl apply -f agents/
+Make sure you have the GITHUB_USERNAME and GITHUB_REPO environment variables defined, pointing to the repository where issues and PRs are to be created, then:
+
+```shell
+for agent_file in agents/*.yaml; do
+  envsubst < "$agent_file" | kubectl apply -f -
+done
+```
+
+If you happened to deploy kagent with the minimal profile (no agents), then deploy the `k8s-agent` too:
+
+```shell
+kubectl apply -f k8s-agent.yaml
 ```
 
 ### 5. Start UI
